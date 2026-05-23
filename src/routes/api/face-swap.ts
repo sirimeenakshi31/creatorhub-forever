@@ -9,6 +9,7 @@ const CORS = {
 // cdingram/face-swap — reliable, fast face-swap model on Replicate
 const MODEL_OWNER = "cdingram";
 const MODEL_NAME = "face-swap";
+const REPLICATE_TOKEN_PATTERN = /^r8_[A-Za-z0-9_-]+$/;
 
 export const Route = createFileRoute("/api/face-swap")({
   server: {
@@ -16,9 +17,15 @@ export const Route = createFileRoute("/api/face-swap")({
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       POST: async ({ request }) => {
         try {
-          const token = process.env.REPLICATE_API_TOKEN;
+          const token = normalizeSecret(process.env.REPLICATE_API_TOKEN);
           if (!token) {
             return json({ error: "REPLICATE_API_TOKEN missing" }, 500);
+          }
+          if (!REPLICATE_TOKEN_PATTERN.test(token)) {
+            return json(
+              { error: "REPLICATE_API_TOKEN is invalid. Please update it with a Replicate token that starts with r8_." },
+              500,
+            );
           }
           const { targetImage, sourceFace } = (await request.json()) as {
             targetImage?: string;
@@ -84,6 +91,10 @@ export const Route = createFileRoute("/api/face-swap")({
     },
   },
 });
+
+function normalizeSecret(value: string | undefined): string {
+  return (value ?? "").trim().replace(/^Bearer\s+/i, "").replace(/^['"]|['"]$/g, "");
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
