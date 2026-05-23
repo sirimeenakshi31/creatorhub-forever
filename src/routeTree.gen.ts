@@ -14,6 +14,8 @@ import { Route as ToolsVoiceRouteImport } from './routes/tools.voice'
 import { Route as ToolsFaceSwapRouteImport } from './routes/tools.face-swap'
 import { Route as ApiFaceSwapRouteImport } from './routes/api/face-swap'
 import { Route as ApiAudioRouteImport } from './routes/api/audio'
+import { Route as ApiAiTextRouteImport } from './routes/api/ai.text'
+import { Route as ApiAiImageRouteImport } from './routes/api/ai.image'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +42,16 @@ const ApiAudioRoute = ApiAudioRouteImport.update({
   path: '/api/audio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAiTextRoute = ApiAiTextRouteImport.update({
+  id: '/api/ai/text',
+  path: '/api/ai/text',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiImageRoute = ApiAiImageRouteImport.update({
+  id: '/api/ai/image',
+  path: '/api/ai/image',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +59,8 @@ export interface FileRoutesByFullPath {
   '/api/face-swap': typeof ApiFaceSwapRoute
   '/tools/face-swap': typeof ToolsFaceSwapRoute
   '/tools/voice': typeof ToolsVoiceRoute
+  '/api/ai/image': typeof ApiAiImageRoute
+  '/api/ai/text': typeof ApiAiTextRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +68,8 @@ export interface FileRoutesByTo {
   '/api/face-swap': typeof ApiFaceSwapRoute
   '/tools/face-swap': typeof ToolsFaceSwapRoute
   '/tools/voice': typeof ToolsVoiceRoute
+  '/api/ai/image': typeof ApiAiImageRoute
+  '/api/ai/text': typeof ApiAiTextRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,6 +78,8 @@ export interface FileRoutesById {
   '/api/face-swap': typeof ApiFaceSwapRoute
   '/tools/face-swap': typeof ToolsFaceSwapRoute
   '/tools/voice': typeof ToolsVoiceRoute
+  '/api/ai/image': typeof ApiAiImageRoute
+  '/api/ai/text': typeof ApiAiTextRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -71,6 +89,8 @@ export interface FileRouteTypes {
     | '/api/face-swap'
     | '/tools/face-swap'
     | '/tools/voice'
+    | '/api/ai/image'
+    | '/api/ai/text'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -78,6 +98,8 @@ export interface FileRouteTypes {
     | '/api/face-swap'
     | '/tools/face-swap'
     | '/tools/voice'
+    | '/api/ai/image'
+    | '/api/ai/text'
   id:
     | '__root__'
     | '/'
@@ -85,6 +107,8 @@ export interface FileRouteTypes {
     | '/api/face-swap'
     | '/tools/face-swap'
     | '/tools/voice'
+    | '/api/ai/image'
+    | '/api/ai/text'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -93,6 +117,8 @@ export interface RootRouteChildren {
   ApiFaceSwapRoute: typeof ApiFaceSwapRoute
   ToolsFaceSwapRoute: typeof ToolsFaceSwapRoute
   ToolsVoiceRoute: typeof ToolsVoiceRoute
+  ApiAiImageRoute: typeof ApiAiImageRoute
+  ApiAiTextRoute: typeof ApiAiTextRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -132,6 +158,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAudioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/ai/text': {
+      id: '/api/ai/text'
+      path: '/api/ai/text'
+      fullPath: '/api/ai/text'
+      preLoaderRoute: typeof ApiAiTextRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai/image': {
+      id: '/api/ai/image'
+      path: '/api/ai/image'
+      fullPath: '/api/ai/image'
+      preLoaderRoute: typeof ApiAiImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -141,6 +181,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiFaceSwapRoute: ApiFaceSwapRoute,
   ToolsFaceSwapRoute: ToolsFaceSwapRoute,
   ToolsVoiceRoute: ToolsVoiceRoute,
+  ApiAiImageRoute: ApiAiImageRoute,
+  ApiAiTextRoute: ApiAiTextRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
