@@ -104,7 +104,7 @@ function Page() {
   return (
     <ToolShell eyebrow={data.eyebrow} title={data.title} description={data.description}>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {data.items.map((it) => (
+        {data.items.map((it: Item) => (
           <a key={it.url + it.title} href={it.url} target={it.url.startsWith("/") ? "_self" : "_blank"} rel="noreferrer"
              className="glass rounded-2xl p-4 hover-lift transition flex items-center justify-between gap-3">
             <div className="min-w-0">
