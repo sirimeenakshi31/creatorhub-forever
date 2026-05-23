@@ -14,6 +14,7 @@ import { Route as ToolsVoiceRouteImport } from './routes/tools.voice'
 import { Route as ToolsFaceSwapRouteImport } from './routes/tools.face-swap'
 import { Route as ApiFaceSwapRouteImport } from './routes/api/face-swap'
 import { Route as ApiAudioRouteImport } from './routes/api/audio'
+import { Route as ApiReplicateRunRouteImport } from './routes/api/replicate.run'
 import { Route as ApiAiTextRouteImport } from './routes/api/ai.text'
 import { Route as ApiAiImageRouteImport } from './routes/api/ai.image'
 
@@ -42,6 +43,11 @@ const ApiAudioRoute = ApiAudioRouteImport.update({
   path: '/api/audio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiReplicateRunRoute = ApiReplicateRunRouteImport.update({
+  id: '/api/replicate/run',
+  path: '/api/replicate/run',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAiTextRoute = ApiAiTextRouteImport.update({
   id: '/api/ai/text',
   path: '/api/ai/text',
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/tools/voice': typeof ToolsVoiceRoute
   '/api/ai/image': typeof ApiAiImageRoute
   '/api/ai/text': typeof ApiAiTextRoute
+  '/api/replicate/run': typeof ApiReplicateRunRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +77,7 @@ export interface FileRoutesByTo {
   '/tools/voice': typeof ToolsVoiceRoute
   '/api/ai/image': typeof ApiAiImageRoute
   '/api/ai/text': typeof ApiAiTextRoute
+  '/api/replicate/run': typeof ApiReplicateRunRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +88,7 @@ export interface FileRoutesById {
   '/tools/voice': typeof ToolsVoiceRoute
   '/api/ai/image': typeof ApiAiImageRoute
   '/api/ai/text': typeof ApiAiTextRoute
+  '/api/replicate/run': typeof ApiReplicateRunRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +100,7 @@ export interface FileRouteTypes {
     | '/tools/voice'
     | '/api/ai/image'
     | '/api/ai/text'
+    | '/api/replicate/run'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +110,7 @@ export interface FileRouteTypes {
     | '/tools/voice'
     | '/api/ai/image'
     | '/api/ai/text'
+    | '/api/replicate/run'
   id:
     | '__root__'
     | '/'
@@ -109,6 +120,7 @@ export interface FileRouteTypes {
     | '/tools/voice'
     | '/api/ai/image'
     | '/api/ai/text'
+    | '/api/replicate/run'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -119,6 +131,7 @@ export interface RootRouteChildren {
   ToolsVoiceRoute: typeof ToolsVoiceRoute
   ApiAiImageRoute: typeof ApiAiImageRoute
   ApiAiTextRoute: typeof ApiAiTextRoute
+  ApiReplicateRunRoute: typeof ApiReplicateRunRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -158,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAudioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/replicate/run': {
+      id: '/api/replicate/run'
+      path: '/api/replicate/run'
+      fullPath: '/api/replicate/run'
+      preLoaderRoute: typeof ApiReplicateRunRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ai/text': {
       id: '/api/ai/text'
       path: '/api/ai/text'
@@ -183,7 +203,18 @@ const rootRouteChildren: RootRouteChildren = {
   ToolsVoiceRoute: ToolsVoiceRoute,
   ApiAiImageRoute: ApiAiImageRoute,
   ApiAiTextRoute: ApiAiTextRoute,
+  ApiReplicateRunRoute: ApiReplicateRunRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
