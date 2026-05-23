@@ -27,6 +27,7 @@ function Index() {
       <Navbar />
       <main>
         <Hero />
+        <LiveTools />
         <ToolSections />
         <Directory />
         <Testimonials />
