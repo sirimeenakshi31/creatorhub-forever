@@ -10,33 +10,89 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ToolsVoiceRouteImport } from './routes/tools.voice'
+import { Route as ToolsFaceSwapRouteImport } from './routes/tools.face-swap'
+import { Route as ApiFaceSwapRouteImport } from './routes/api/face-swap'
+import { Route as ApiAudioRouteImport } from './routes/api/audio'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ToolsVoiceRoute = ToolsVoiceRouteImport.update({
+  id: '/tools/voice',
+  path: '/tools/voice',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ToolsFaceSwapRoute = ToolsFaceSwapRouteImport.update({
+  id: '/tools/face-swap',
+  path: '/tools/face-swap',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFaceSwapRoute = ApiFaceSwapRouteImport.update({
+  id: '/api/face-swap',
+  path: '/api/face-swap',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAudioRoute = ApiAudioRouteImport.update({
+  id: '/api/audio',
+  path: '/api/audio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/audio': typeof ApiAudioRoute
+  '/api/face-swap': typeof ApiFaceSwapRoute
+  '/tools/face-swap': typeof ToolsFaceSwapRoute
+  '/tools/voice': typeof ToolsVoiceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/audio': typeof ApiAudioRoute
+  '/api/face-swap': typeof ApiFaceSwapRoute
+  '/tools/face-swap': typeof ToolsFaceSwapRoute
+  '/tools/voice': typeof ToolsVoiceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/audio': typeof ApiAudioRoute
+  '/api/face-swap': typeof ApiFaceSwapRoute
+  '/tools/face-swap': typeof ToolsFaceSwapRoute
+  '/tools/voice': typeof ToolsVoiceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/api/audio'
+    | '/api/face-swap'
+    | '/tools/face-swap'
+    | '/tools/voice'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/api/audio'
+    | '/api/face-swap'
+    | '/tools/face-swap'
+    | '/tools/voice'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/audio'
+    | '/api/face-swap'
+    | '/tools/face-swap'
+    | '/tools/voice'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiAudioRoute: typeof ApiAudioRoute
+  ApiFaceSwapRoute: typeof ApiFaceSwapRoute
+  ToolsFaceSwapRoute: typeof ToolsFaceSwapRoute
+  ToolsVoiceRoute: typeof ToolsVoiceRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,22 +104,44 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tools/voice': {
+      id: '/tools/voice'
+      path: '/tools/voice'
+      fullPath: '/tools/voice'
+      preLoaderRoute: typeof ToolsVoiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tools/face-swap': {
+      id: '/tools/face-swap'
+      path: '/tools/face-swap'
+      fullPath: '/tools/face-swap'
+      preLoaderRoute: typeof ToolsFaceSwapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/face-swap': {
+      id: '/api/face-swap'
+      path: '/api/face-swap'
+      fullPath: '/api/face-swap'
+      preLoaderRoute: typeof ApiFaceSwapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/audio': {
+      id: '/api/audio'
+      path: '/api/audio'
+      fullPath: '/api/audio'
+      preLoaderRoute: typeof ApiAudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiAudioRoute: ApiAudioRoute,
+  ApiFaceSwapRoute: ApiFaceSwapRoute,
+  ToolsFaceSwapRoute: ToolsFaceSwapRoute,
+  ToolsVoiceRoute: ToolsVoiceRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
