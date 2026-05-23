@@ -11,8 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ToolsVoiceRouteImport } from './routes/tools.voice'
+import { Route as ToolsSpeechToTextRouteImport } from './routes/tools.speech-to-text'
 import { Route as ToolsFaceSwapRouteImport } from './routes/tools.face-swap'
+import { Route as ToolsAiVideoRouteImport } from './routes/tools.ai-video'
 import { Route as ToolsSlugRouteImport } from './routes/tools.$slug'
+import { Route as ApiVideoRouteImport } from './routes/api/video'
+import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiFaceSwapRouteImport } from './routes/api/face-swap'
 import { Route as ApiAudioRouteImport } from './routes/api/audio'
 import { Route as ApiReplicateRunRouteImport } from './routes/api/replicate.run'
@@ -29,14 +33,34 @@ const ToolsVoiceRoute = ToolsVoiceRouteImport.update({
   path: '/tools/voice',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ToolsSpeechToTextRoute = ToolsSpeechToTextRouteImport.update({
+  id: '/tools/speech-to-text',
+  path: '/tools/speech-to-text',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ToolsFaceSwapRoute = ToolsFaceSwapRouteImport.update({
   id: '/tools/face-swap',
   path: '/tools/face-swap',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ToolsAiVideoRoute = ToolsAiVideoRouteImport.update({
+  id: '/tools/ai-video',
+  path: '/tools/ai-video',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ToolsSlugRoute = ToolsSlugRouteImport.update({
   id: '/tools/$slug',
   path: '/tools/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVideoRoute = ApiVideoRouteImport.update({
+  id: '/api/video',
+  path: '/api/video',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
+  id: '/api/transcribe',
+  path: '/api/transcribe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiFaceSwapRoute = ApiFaceSwapRouteImport.update({
@@ -69,8 +93,12 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/audio': typeof ApiAudioRoute
   '/api/face-swap': typeof ApiFaceSwapRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
+  '/api/video': typeof ApiVideoRoute
   '/tools/$slug': typeof ToolsSlugRoute
+  '/tools/ai-video': typeof ToolsAiVideoRoute
   '/tools/face-swap': typeof ToolsFaceSwapRoute
+  '/tools/speech-to-text': typeof ToolsSpeechToTextRoute
   '/tools/voice': typeof ToolsVoiceRoute
   '/api/ai/image': typeof ApiAiImageRoute
   '/api/ai/text': typeof ApiAiTextRoute
@@ -80,8 +108,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/audio': typeof ApiAudioRoute
   '/api/face-swap': typeof ApiFaceSwapRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
+  '/api/video': typeof ApiVideoRoute
   '/tools/$slug': typeof ToolsSlugRoute
+  '/tools/ai-video': typeof ToolsAiVideoRoute
   '/tools/face-swap': typeof ToolsFaceSwapRoute
+  '/tools/speech-to-text': typeof ToolsSpeechToTextRoute
   '/tools/voice': typeof ToolsVoiceRoute
   '/api/ai/image': typeof ApiAiImageRoute
   '/api/ai/text': typeof ApiAiTextRoute
@@ -92,8 +124,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/api/audio': typeof ApiAudioRoute
   '/api/face-swap': typeof ApiFaceSwapRoute
+  '/api/transcribe': typeof ApiTranscribeRoute
+  '/api/video': typeof ApiVideoRoute
   '/tools/$slug': typeof ToolsSlugRoute
+  '/tools/ai-video': typeof ToolsAiVideoRoute
   '/tools/face-swap': typeof ToolsFaceSwapRoute
+  '/tools/speech-to-text': typeof ToolsSpeechToTextRoute
   '/tools/voice': typeof ToolsVoiceRoute
   '/api/ai/image': typeof ApiAiImageRoute
   '/api/ai/text': typeof ApiAiTextRoute
@@ -105,8 +141,12 @@ export interface FileRouteTypes {
     | '/'
     | '/api/audio'
     | '/api/face-swap'
+    | '/api/transcribe'
+    | '/api/video'
     | '/tools/$slug'
+    | '/tools/ai-video'
     | '/tools/face-swap'
+    | '/tools/speech-to-text'
     | '/tools/voice'
     | '/api/ai/image'
     | '/api/ai/text'
@@ -116,8 +156,12 @@ export interface FileRouteTypes {
     | '/'
     | '/api/audio'
     | '/api/face-swap'
+    | '/api/transcribe'
+    | '/api/video'
     | '/tools/$slug'
+    | '/tools/ai-video'
     | '/tools/face-swap'
+    | '/tools/speech-to-text'
     | '/tools/voice'
     | '/api/ai/image'
     | '/api/ai/text'
@@ -127,8 +171,12 @@ export interface FileRouteTypes {
     | '/'
     | '/api/audio'
     | '/api/face-swap'
+    | '/api/transcribe'
+    | '/api/video'
     | '/tools/$slug'
+    | '/tools/ai-video'
     | '/tools/face-swap'
+    | '/tools/speech-to-text'
     | '/tools/voice'
     | '/api/ai/image'
     | '/api/ai/text'
@@ -139,8 +187,12 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiAudioRoute: typeof ApiAudioRoute
   ApiFaceSwapRoute: typeof ApiFaceSwapRoute
+  ApiTranscribeRoute: typeof ApiTranscribeRoute
+  ApiVideoRoute: typeof ApiVideoRoute
   ToolsSlugRoute: typeof ToolsSlugRoute
+  ToolsAiVideoRoute: typeof ToolsAiVideoRoute
   ToolsFaceSwapRoute: typeof ToolsFaceSwapRoute
+  ToolsSpeechToTextRoute: typeof ToolsSpeechToTextRoute
   ToolsVoiceRoute: typeof ToolsVoiceRoute
   ApiAiImageRoute: typeof ApiAiImageRoute
   ApiAiTextRoute: typeof ApiAiTextRoute
@@ -163,6 +215,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ToolsVoiceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tools/speech-to-text': {
+      id: '/tools/speech-to-text'
+      path: '/tools/speech-to-text'
+      fullPath: '/tools/speech-to-text'
+      preLoaderRoute: typeof ToolsSpeechToTextRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tools/face-swap': {
       id: '/tools/face-swap'
       path: '/tools/face-swap'
@@ -170,11 +229,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ToolsFaceSwapRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tools/ai-video': {
+      id: '/tools/ai-video'
+      path: '/tools/ai-video'
+      fullPath: '/tools/ai-video'
+      preLoaderRoute: typeof ToolsAiVideoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tools/$slug': {
       id: '/tools/$slug'
       path: '/tools/$slug'
       fullPath: '/tools/$slug'
       preLoaderRoute: typeof ToolsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/video': {
+      id: '/api/video'
+      path: '/api/video'
+      fullPath: '/api/video'
+      preLoaderRoute: typeof ApiVideoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/transcribe': {
+      id: '/api/transcribe'
+      path: '/api/transcribe'
+      fullPath: '/api/transcribe'
+      preLoaderRoute: typeof ApiTranscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/face-swap': {
@@ -219,8 +299,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiAudioRoute: ApiAudioRoute,
   ApiFaceSwapRoute: ApiFaceSwapRoute,
+  ApiTranscribeRoute: ApiTranscribeRoute,
+  ApiVideoRoute: ApiVideoRoute,
   ToolsSlugRoute: ToolsSlugRoute,
+  ToolsAiVideoRoute: ToolsAiVideoRoute,
   ToolsFaceSwapRoute: ToolsFaceSwapRoute,
+  ToolsSpeechToTextRoute: ToolsSpeechToTextRoute,
   ToolsVoiceRoute: ToolsVoiceRoute,
   ApiAiImageRoute: ApiAiImageRoute,
   ApiAiTextRoute: ApiAiTextRoute,
@@ -229,3 +313,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
