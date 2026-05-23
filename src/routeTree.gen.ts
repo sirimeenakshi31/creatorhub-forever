@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ToolsVoiceRouteImport } from './routes/tools.voice'
 import { Route as ToolsFaceSwapRouteImport } from './routes/tools.face-swap'
+import { Route as ToolsSlugRouteImport } from './routes/tools.$slug'
 import { Route as ApiFaceSwapRouteImport } from './routes/api/face-swap'
 import { Route as ApiAudioRouteImport } from './routes/api/audio'
 import { Route as ApiReplicateRunRouteImport } from './routes/api/replicate.run'
@@ -31,6 +32,11 @@ const ToolsVoiceRoute = ToolsVoiceRouteImport.update({
 const ToolsFaceSwapRoute = ToolsFaceSwapRouteImport.update({
   id: '/tools/face-swap',
   path: '/tools/face-swap',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ToolsSlugRoute = ToolsSlugRouteImport.update({
+  id: '/tools/$slug',
+  path: '/tools/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiFaceSwapRoute = ApiFaceSwapRouteImport.update({
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/audio': typeof ApiAudioRoute
   '/api/face-swap': typeof ApiFaceSwapRoute
+  '/tools/$slug': typeof ToolsSlugRoute
   '/tools/face-swap': typeof ToolsFaceSwapRoute
   '/tools/voice': typeof ToolsVoiceRoute
   '/api/ai/image': typeof ApiAiImageRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/audio': typeof ApiAudioRoute
   '/api/face-swap': typeof ApiFaceSwapRoute
+  '/tools/$slug': typeof ToolsSlugRoute
   '/tools/face-swap': typeof ToolsFaceSwapRoute
   '/tools/voice': typeof ToolsVoiceRoute
   '/api/ai/image': typeof ApiAiImageRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/api/audio': typeof ApiAudioRoute
   '/api/face-swap': typeof ApiFaceSwapRoute
+  '/tools/$slug': typeof ToolsSlugRoute
   '/tools/face-swap': typeof ToolsFaceSwapRoute
   '/tools/voice': typeof ToolsVoiceRoute
   '/api/ai/image': typeof ApiAiImageRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/audio'
     | '/api/face-swap'
+    | '/tools/$slug'
     | '/tools/face-swap'
     | '/tools/voice'
     | '/api/ai/image'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/audio'
     | '/api/face-swap'
+    | '/tools/$slug'
     | '/tools/face-swap'
     | '/tools/voice'
     | '/api/ai/image'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/audio'
     | '/api/face-swap'
+    | '/tools/$slug'
     | '/tools/face-swap'
     | '/tools/voice'
     | '/api/ai/image'
@@ -127,6 +139,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiAudioRoute: typeof ApiAudioRoute
   ApiFaceSwapRoute: typeof ApiFaceSwapRoute
+  ToolsSlugRoute: typeof ToolsSlugRoute
   ToolsFaceSwapRoute: typeof ToolsFaceSwapRoute
   ToolsVoiceRoute: typeof ToolsVoiceRoute
   ApiAiImageRoute: typeof ApiAiImageRoute
@@ -155,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/tools/face-swap'
       fullPath: '/tools/face-swap'
       preLoaderRoute: typeof ToolsFaceSwapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tools/$slug': {
+      id: '/tools/$slug'
+      path: '/tools/$slug'
+      fullPath: '/tools/$slug'
+      preLoaderRoute: typeof ToolsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/face-swap': {
@@ -199,6 +219,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiAudioRoute: ApiAudioRoute,
   ApiFaceSwapRoute: ApiFaceSwapRoute,
+  ToolsSlugRoute: ToolsSlugRoute,
   ToolsFaceSwapRoute: ToolsFaceSwapRoute,
   ToolsVoiceRoute: ToolsVoiceRoute,
   ApiAiImageRoute: ApiAiImageRoute,
