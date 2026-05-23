@@ -10,33 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiFaceSwapRouteImport } from './routes/api/face-swap'
+import { Route as ApiAudioRouteImport } from './routes/api/audio'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFaceSwapRoute = ApiFaceSwapRouteImport.update({
+  id: '/api/face-swap',
+  path: '/api/face-swap',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAudioRoute = ApiAudioRouteImport.update({
+  id: '/api/audio',
+  path: '/api/audio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/audio': typeof ApiAudioRoute
+  '/api/face-swap': typeof ApiFaceSwapRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/audio': typeof ApiAudioRoute
+  '/api/face-swap': typeof ApiFaceSwapRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/audio': typeof ApiAudioRoute
+  '/api/face-swap': typeof ApiFaceSwapRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/audio' | '/api/face-swap'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/audio' | '/api/face-swap'
+  id: '__root__' | '/' | '/api/audio' | '/api/face-swap'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiAudioRoute: typeof ApiAudioRoute
+  ApiFaceSwapRoute: typeof ApiFaceSwapRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +68,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/face-swap': {
+      id: '/api/face-swap'
+      path: '/api/face-swap'
+      fullPath: '/api/face-swap'
+      preLoaderRoute: typeof ApiFaceSwapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/audio': {
+      id: '/api/audio'
+      path: '/api/audio'
+      fullPath: '/api/audio'
+      preLoaderRoute: typeof ApiAudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiAudioRoute: ApiAudioRoute,
+  ApiFaceSwapRoute: ApiFaceSwapRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
