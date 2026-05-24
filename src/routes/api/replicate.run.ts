@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { rateLimit } from "@/lib/server-utils";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -18,6 +19,8 @@ export const Route = createFileRoute("/api/replicate/run")({
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       POST: async ({ request }) => {
+        const limited = rateLimit(request, "replicate-run", 5, 60_000);
+        if (limited) return limited;
         try {
           const tokenRaw = process.env.REPLICATE_API_TOKEN;
           const token = tokenRaw?.trim().replace(/^["']|["']$/g, "").replace(/^Bearer\s+/i, "");

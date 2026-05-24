@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { rateLimit, systemForSlug, DEFAULT_TEXT_MODEL } from "@/lib/server-utils";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -13,20 +14,27 @@ export const Route = createFileRoute("/api/ai/text")({
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       POST: async ({ request }) => {
+        const limited = rateLimit(request, "ai-text", 20, 60_000);
+        if (limited) return limited;
         try {
           const key = process.env.LOVABLE_API_KEY;
           if (!key) return json({ error: "LOVABLE_API_KEY missing" }, 500);
-          const { system, prompt, model } = (await request.json()) as {
-            system?: string; prompt?: string; model?: string;
+          const { slug, prompt } = (await request.json()) as {
+            slug?: string; prompt?: string;
           };
-          if (!prompt || typeof prompt !== "string" || prompt.length > 5000) {
-            return json({ error: "Prompt required (≤5000 chars)" }, 400);
+          if (!prompt || typeof prompt !== "string" || prompt.length < 1 || prompt.length > 5000) {
+            return json({ error: "Prompt required (1–5000 chars)" }, 400);
           }
+          if (slug !== undefined && (typeof slug !== "string" || slug.length > 64 || !/^[a-z0-9-]+$/.test(slug))) {
+            return json({ error: "Invalid slug" }, 400);
+          }
+          // System prompt is resolved server-side from a trusted registry; client-supplied prompts are ignored.
+          const system = systemForSlug(slug);
           const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
             headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
             body: JSON.stringify({
-              model: model || "google/gemini-3-flash-preview",
+              model: DEFAULT_TEXT_MODEL,
               messages: [
                 ...(system ? [{ role: "system", content: system }] : []),
                 { role: "user", content: prompt },

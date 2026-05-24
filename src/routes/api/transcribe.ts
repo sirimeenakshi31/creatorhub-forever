@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { rateLimit } from "@/lib/server-utils";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -7,17 +8,22 @@ const CORS = {
 };
 const json = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { "Content-Type": "application/json", ...CORS } });
 
+const MAX_BYTES = 25 * 1024 * 1024; // 25 MB
+
 export const Route = createFileRoute("/api/transcribe")({
   server: {
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       POST: async ({ request }) => {
+        const limited = rateLimit(request, "transcribe", 5, 60_000);
+        if (limited) return limited;
         try {
           const key = process.env.ELEVENLABS_API_KEY;
           if (!key) return json({ error: "ELEVENLABS_API_KEY missing" }, 500);
           const form = await request.formData();
           const file = form.get("file");
           if (!(file instanceof File)) return json({ error: "file is required" }, 400);
+          if (file.size > MAX_BYTES) return json({ error: "File too large (max 25 MB)" }, 413);
 
           const fd = new FormData();
           fd.append("file", file);

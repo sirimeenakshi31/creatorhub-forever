@@ -15,11 +15,10 @@ export function PaletteToolPage({ tool }: { tool: Tool }) {
     if (!prompt.trim()) return;
     setLoading(true); setPalettes([]);
     try {
-      const sys = `You design beautiful color palettes. Return ONLY raw JSON (no markdown fences) shaped: {"palettes":[{"name":string,"colors":[6 hex strings starting with #]}]}. Generate 3 palettes matching the mood.`;
       const res = await fetch("/api/ai/text", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ system: sys, prompt }),
+        body: JSON.stringify({ slug: tool.slug, prompt }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `Error ${res.status}`);
