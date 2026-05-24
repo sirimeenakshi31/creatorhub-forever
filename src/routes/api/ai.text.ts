@@ -17,18 +17,20 @@ export const Route = createFileRoute("/api/ai/text")({
         const limited = rateLimit(request, "ai-text", 20, 60_000);
         if (limited) return limited;
         try {
-          const key = process.env.LOVABLE_API_KEY;
-          if (!key) return json({ error: "LOVABLE_API_KEY missing" }, 500);
-          const { slug, prompt } = (await request.json()) as {
-            slug?: string; prompt?: string;
-          };
+          const { slug, prompt } = (await request.json().catch(() => ({}))) as { slug?: string; prompt?: string };
           if (!prompt || typeof prompt !== "string" || prompt.length < 1 || prompt.length > 5000) {
             return json({ error: "Prompt required (1–5000 chars)" }, 400);
           }
           if (slug !== undefined && (typeof slug !== "string" || slug.length > 64 || !/^[a-z0-9-]+$/.test(slug))) {
             return json({ error: "Invalid slug" }, 400);
           }
-          // System prompt is resolved server-side from a trusted registry; client-supplied prompts are ignored.
+          const key = process.env.LOVABLE_API_KEY;
+          if (!key) {
+            return json({
+              content: `✨ Sample output for "${prompt.slice(0, 80)}"\n\nSet LOVABLE_API_KEY in your .env to enable real AI generation. This placeholder lets you keep building the UI offline.`,
+              mock: true,
+            });
+          }
           const system = systemForSlug(slug);
           const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",

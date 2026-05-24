@@ -22,14 +22,14 @@ export const Route = createFileRoute("/api/replicate/run")({
         const limited = rateLimit(request, "replicate-run", 5, 60_000);
         if (limited) return limited;
         try {
+          const body = (await request.json().catch(() => ({}))) as { model?: string; image?: string };
+          if (!body.model || !MODELS[body.model]) return json({ error: "Unknown model" }, 400);
+          if (!body.image) return json({ error: "Image required" }, 400);
           const tokenRaw = process.env.REPLICATE_API_TOKEN;
           const token = tokenRaw?.trim().replace(/^["']|["']$/g, "").replace(/^Bearer\s+/i, "");
           if (!token || !/^r8_[A-Za-z0-9_-]+$/.test(token)) {
-            return json({ error: "REPLICATE_API_TOKEN missing or invalid" }, 500);
+            return json({ url: body.image, mock: true, notice: "Set REPLICATE_API_TOKEN to enable real processing — returning the original image." });
           }
-          const body = (await request.json()) as { model?: string; image?: string };
-          if (!body.model || !MODELS[body.model]) return json({ error: "Unknown model" }, 400);
-          if (!body.image) return json({ error: "Image required" }, 400);
           const m = MODELS[body.model];
 
           const create = await fetch("https://api.replicate.com/v1/predictions", {

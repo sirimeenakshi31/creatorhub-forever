@@ -20,22 +20,16 @@ export const Route = createFileRoute("/api/face-swap")({
         const limited = rateLimit(request, "face-swap", 3, 60_000);
         if (limited) return limited;
         try {
-          const token = normalizeSecret(process.env.REPLICATE_API_TOKEN);
-          if (!token) {
-            return json({ error: "REPLICATE_API_TOKEN missing" }, 500);
-          }
-          if (!REPLICATE_TOKEN_PATTERN.test(token)) {
-            return json(
-              { error: "REPLICATE_API_TOKEN is invalid. Please update it with a Replicate token that starts with r8_." },
-              500,
-            );
-          }
-          const { targetImage, sourceFace } = (await request.json()) as {
+          const { targetImage, sourceFace } = (await request.json().catch(() => ({}))) as {
             targetImage?: string;
             sourceFace?: string;
           };
           if (!targetImage || !sourceFace) {
             return json({ error: "targetImage and sourceFace are required (data URLs or http URLs)" }, 400);
+          }
+          const token = normalizeSecret(process.env.REPLICATE_API_TOKEN);
+          if (!token || !REPLICATE_TOKEN_PATTERN.test(token)) {
+            return json({ output: targetImage, mock: true, notice: "Set REPLICATE_API_TOKEN to enable real face-swap — returning your target image." });
           }
 
           // Kick off the prediction with Prefer: wait for quick sync return
