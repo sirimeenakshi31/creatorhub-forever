@@ -17,11 +17,14 @@ export const Route = createFileRoute("/api/ai/image")({
         const limited = rateLimit(request, "ai-image", 10, 60_000);
         if (limited) return limited;
         try {
-          const key = process.env.LOVABLE_API_KEY;
-          if (!key) return json({ error: "LOVABLE_API_KEY missing" }, 500);
-          const { prompt } = (await request.json()) as { prompt?: string };
+          const { prompt } = (await request.json().catch(() => ({}))) as { prompt?: string };
           if (!prompt || typeof prompt !== "string" || prompt.length < 1 || prompt.length > 2000) {
             return json({ error: "Prompt required (1–2000 chars)" }, 400);
+          }
+          const key = process.env.LOVABLE_API_KEY;
+          if (!key) {
+            const seed = encodeURIComponent(prompt.slice(0, 60));
+            return json({ url: `https://picsum.photos/seed/${seed}/1024/1024`, mock: true });
           }
           // Model is fixed server-side; never trust client-supplied identifiers.
           const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
