@@ -29,6 +29,20 @@ export const Route = createFileRoute("/api/audio")({
               headers: { "Content-Type": "application/json", ...CORS },
             });
           }
+          const ALLOWED_VOICES = new Set([
+            "EXAVITQu4vr4xnSDxMaL",
+            "FGY2WhTYpPnrIDTdsKH5",
+            "JBFqnCBsd6RMkjVDRZzb",
+            "TX3LPaxmHKxFdv7VOQHJ",
+            "Xb7hH8MSUJpSbSDYk0k2",
+            "nPczCjzI2devNBz1zQrb",
+          ]);
+          if (voiceId && !ALLOWED_VOICES.has(voiceId)) {
+            return new Response(JSON.stringify({ error: "Unknown voice" }), {
+              status: 400,
+              headers: { "Content-Type": "application/json", ...CORS },
+            });
+          }
           const voice = voiceId || "EXAVITQu4vr4xnSDxMaL";
 
           const resp = await fetch(
