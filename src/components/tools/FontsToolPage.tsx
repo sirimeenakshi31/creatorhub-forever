@@ -15,10 +15,9 @@ export function FontsToolPage({ tool }: { tool: Tool }) {
     if (!prompt.trim()) return;
     setLoading(true); setPairs([]);
     try {
-      const sys = `Suggest 4 Google Font pairings for a brand. Return ONLY raw JSON: {"pairs":[{"name":string,"heading":string (google font family name),"body":string,"reason":string}]}`;
       const res = await fetch("/api/ai/text", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ system: sys, prompt }),
+        body: JSON.stringify({ slug: tool.slug, prompt }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `Error ${res.status}`);

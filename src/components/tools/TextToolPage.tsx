@@ -17,7 +17,7 @@ export function TextToolPage({ tool }: { tool: Tool }) {
       const res = await fetch("/api/ai/text", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ system: tool.system, prompt }),
+        body: JSON.stringify({ slug: tool.slug, prompt }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `Error ${res.status}`);
