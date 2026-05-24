@@ -15,15 +15,17 @@ export const Route = createFileRoute("/api/video")({
       POST: async ({ request }) => {
         const limited = rateLimit(request, "video", 3, 60_000);
         if (limited) return limited;
+        const MOCK_VIDEO = "https://cdn.pixabay.com/video/2024/02/27/202289-916715234_tiny.mp4";
         try {
+          const { prompt } = (await request.json().catch(() => ({}))) as { prompt?: string };
+          if (!prompt || typeof prompt !== "string" || prompt.length < 1 || prompt.length > 1500) {
+            return json({ error: "Prompt required (1–1500 chars)" }, 400);
+          }
           const tokenRaw = process.env.REPLICATE_API_TOKEN;
           const token = tokenRaw?.trim().replace(/^["']|["']$/g, "").replace(/^Bearer\s+/i, "");
           if (!token || !/^r8_[A-Za-z0-9_-]+$/.test(token)) {
-            return json({ error: "REPLICATE_API_TOKEN missing or invalid" }, 500);
-          }
-          const { prompt } = (await request.json()) as { prompt?: string };
-          if (!prompt || typeof prompt !== "string" || prompt.length < 1 || prompt.length > 1500) {
-            return json({ error: "Prompt required (1–1500 chars)" }, 400);
+            // Graceful mock fallback so the UI never sees a 500.
+            return json({ url: MOCK_VIDEO, mock: true, notice: "Using sample video — set REPLICATE_API_TOKEN to enable real generation." });
           }
 
           // Use luma/ray-flash-2-540p — fast 5s text-to-video
