@@ -1,4 +1,5 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
+import { RequireAuth } from "@/components/RequireAuth";
 import { ExternalLink } from "lucide-react";
 import { ToolShell } from "@/components/ToolShell";
 
@@ -96,7 +97,7 @@ export const Route = createFileRoute("/tools/resources/$kind")({
       { name: "description", content: loaderData.data.description },
     ] : [],
   }),
-  component: Page,
+  component: () => <RequireAuth><Page /></RequireAuth>,
 });
 
 function Page() {

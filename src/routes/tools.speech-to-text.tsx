@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RequireAuth } from "@/components/RequireAuth";
 import { useState } from "react";
 import { Loader2, Upload, Copy, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -6,7 +7,7 @@ import { ToolShell } from "@/components/ToolShell";
 
 export const Route = createFileRoute("/tools/speech-to-text")({
   head: () => ({ meta: [{ title: "Speech to Text — CreatorHub" }, { name: "description", content: "Transcribe any audio file to text instantly." }] }),
-  component: Page,
+  component: () => <RequireAuth><Page /></RequireAuth>,
 });
 
 function Page() {

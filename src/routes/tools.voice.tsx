@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RequireAuth } from "@/components/RequireAuth";
 import { useState } from "react";
 import { Loader2, Play, Download, Volume2 } from "lucide-react";
 import { ToolShell } from "@/components/ToolShell";
@@ -19,7 +20,7 @@ export const Route = createFileRoute("/tools/voice")({
       { name: "description", content: "Turn text into realistic voiceovers in seconds. Free to use." },
     ],
   }),
-  component: VoicePage,
+  component: () => <RequireAuth><VoicePage /></RequireAuth>,
 });
 
 function VoicePage() {

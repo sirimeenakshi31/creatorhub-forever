@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RequireAuth } from "@/components/RequireAuth";
 import { useRef, useState, useEffect } from "react";
 import { Type, Image as ImageIcon, Download, Trash2, Square, Plus, Palette } from "lucide-react";
 import { toast } from "sonner";
@@ -6,7 +7,7 @@ import { ToolShell } from "@/components/ToolShell";
 
 export const Route = createFileRoute("/tools/canvas-editor")({
   head: () => ({ meta: [{ title: "Canvas Editor — CreatorHub" }, { name: "description", content: "Quick drag-and-drop image editor for creators." }] }),
-  component: Editor,
+  component: () => <RequireAuth><Editor /></RequireAuth>,
 });
 
 type Layer =
