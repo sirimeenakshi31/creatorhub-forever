@@ -38,7 +38,7 @@ function DashboardPage() {
             {featured.map((t) => (
               <Link
                 key={t.slug}
-                to={t.route ?? `/tools/${t.slug}` as never}
+                to={`/tools/${t.slug}` as never}
                 className="glass rounded-xl p-4 shadow-card hover:shadow-glow transition group"
               >
                 <div className="size-9 rounded-lg bg-gradient-brand grid place-items-center shadow-glow mb-3">
