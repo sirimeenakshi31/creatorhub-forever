@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RequireAuth } from "@/components/RequireAuth";
 import { useState } from "react";
 import { Loader2, Upload, Download, Sparkles, ImagePlus } from "lucide-react";
 import { ToolShell } from "@/components/ToolShell";
@@ -10,7 +11,7 @@ export const Route = createFileRoute("/tools/face-swap")({
       { name: "description", content: "Swap faces between two photos in seconds. Free AI tool for creators." },
     ],
   }),
-  component: SwapPage,
+  component: () => <RequireAuth><SwapPage /></RequireAuth>,
 });
 
 function readAsDataUrl(file: File): Promise<string> {
