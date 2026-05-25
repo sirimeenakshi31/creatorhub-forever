@@ -5,6 +5,7 @@ import { ImageToolPage } from "@/components/tools/ImageToolPage";
 import { PaletteToolPage } from "@/components/tools/PaletteToolPage";
 import { FontsToolPage } from "@/components/tools/FontsToolPage";
 import { UploadToolPage } from "@/components/tools/UploadToolPage";
+import { RequireAuth } from "@/components/RequireAuth";
 
 export const Route = createFileRoute("/tools/$slug")({
   loader: ({ params }) => {
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/tools/$slug")({
       { name: "description", content: loaderData.tool.description },
     ] : [],
   }),
-  component: ToolRouter,
+  component: () => <RequireAuth><ToolRouter /></RequireAuth>,
 });
 
 function ToolRouter() {
