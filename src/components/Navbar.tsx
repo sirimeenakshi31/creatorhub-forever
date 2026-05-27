@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Sparkles, Search, Menu, X, LayoutDashboard, LogOut } from "lucide-react";
+import { Sparkles, Search, Menu, X, LayoutDashboard, LogOut, User } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -43,6 +43,9 @@ export function Navbar() {
               <Link to="/dashboard" className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg border border-border text-sm hover:bg-accent">
                 <LayoutDashboard className="size-4" /> Dashboard
               </Link>
+              <Link to="/profile" className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent" aria-label="Profile">
+                <User className="size-4" />
+              </Link>
               <button onClick={signOut} className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent" aria-label="Sign out">
                 <LogOut className="size-4" />
               </button>
@@ -66,6 +69,7 @@ export function Navbar() {
           {user ? (
             <>
               <Link to="/dashboard" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg hover:bg-accent text-sm">Dashboard</Link>
+              <Link to="/profile" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg hover:bg-accent text-sm">Profile</Link>
               <button onClick={() => { signOut(); setOpen(false); }} className="px-3 py-2 rounded-lg hover:bg-accent text-sm text-left">Sign out</button>
             </>
           ) : (

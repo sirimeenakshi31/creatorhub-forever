@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { LogOut, Sparkles, ArrowRight, Star } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { RequireAuth } from "@/components/RequireAuth";
 import { Navbar } from "@/components/Navbar";
 import { TOOLS } from "@/lib/tools";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — CreatorHub" }, { name: "description", content: "Your creator dashboard." }] }),
@@ -13,7 +15,17 @@ export const Route = createFileRoute("/dashboard")({
 function DashboardPage() {
   const { user, signOut } = useAuth();
   const featured = TOOLS.slice(0, 8);
-  const name = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "creator";
+  const [profileName, setProfileName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
+      .then(({ data }) => { if (active) setProfileName(data?.display_name ?? null); });
+    return () => { active = false; };
+  }, [user]);
+
+  const name = profileName || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "creator";
 
   return (
     <div className="min-h-screen bg-background">

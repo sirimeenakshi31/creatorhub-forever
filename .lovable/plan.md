@@ -1,44 +1,49 @@
-# CreatorHub — All-in-One AI Creator Platform
 
-This is a large build (60+ tool pages, 2 API integrations, dashboard, theming). I'll do it in 4 shippable phases so the preview stays working after every step. No payments, no premium gates, no credits — every tool reachable from the homepage.
+## Goal
 
-## Phase 0 — Stabilize (do first)
-- Fix the active SSR crash (`Failed to fetch virtual:tanstack-start-client-entry`) so the preview boots.
-- Confirm `LOVABLE_API_KEY` is present (used for AI text/image/video tools via the Lovable AI Gateway — no user key needed).
-- Confirm `ELEVENLABS_API_KEY` and `REPLICATE_API_TOKEN` are present (already wired for voice + face-swap).
+Add a simple, protected profile page at `/profile` where signed-in users can:
+- View their account email (read-only)
+- Edit their display name (stored in a `profiles` table)
+- Change their password (for email/password users)
 
-## Phase 1 — Shell, theme, navigation
-- Dashboard homepage with: hero, search bar, category sidebar, **Trending tools**, **Recently used** (localStorage), and a full grid linking to every tool below.
-- Sidebar categories: Content · Video · Audio · Image & Design · Resources.
-- Dark/light mode toggle, glassmorphism + soft-gradient theme, Framer Motion page transitions, toast system (sonner).
-- Shared `ToolPage` layout: title, description, input area (textarea / upload / dropzone), Generate button with loading animation, output area with Copy/Download buttons.
+## Scope
 
-## Phase 2 — Tool pages (all wired, no dead routes)
-Each tool gets its own route under `/tools/<slug>` with a real working generate flow. Routing strategy:
+Small, focused addition. Keeps the existing glassmorphism style, `RequireAuth` pattern, and Supabase auth flow already in use.
 
-- **Text tools** (Script, Caption, Hook, Viral Title, Hashtag, YouTube Description, Storytelling Prompt, Blog, Tweet, Pinterest Description, Reel Idea, Scene Prompt, Thumbnail Prompt, Podcast Intro, Sound FX prompt, Subtitle/Caption text, Color Palette, Font Pairing) → single server function calling Lovable AI Gateway (`google/gemini-3-flash-preview`) with a per-tool system prompt. Structured outputs via tool-calling where useful (palettes, hashtags, font pairs).
-- **Image tools** (AI Image, Pinterest Pin, IG Carousel slides, Logo, Poster, YT Thumbnail, Profile Picture, Background Remover, Character Swap) → Lovable AI Gateway image models (`google/gemini-2.5-flash-image`). Background Remover + Character Swap + Face Swap use Replicate.
-- **Video tools** (AI Video, Faceless Video, Video Enhancer, Auto Shorts, Subtitle/Video Caption burn-in) → Replicate models; long-running jobs polled server-side, with a graceful mock fallback if the API errors so the UI never crashes.
-- **Audio tools** (Voice Generator, TTS, Voice Changer, Audio Cleaner, Music Generator, Sound FX, Audio Subtitle) → ElevenLabs for TTS/voices; Speech-to-Text via ElevenLabs STT; mock waveform fallback for any failure.
-- **Canva-style Editor** → lightweight in-browser editor (text + image layers on a canvas, export PNG). Not a full Canva clone — a usable single-page editor.
-- **Creator Resources** (Stock videos, Free music, Sound FX, Aesthetic images, Trending sounds, Daily viral reel ideas, Inspiration gallery) → curated lists pulling from free public sources (Pexels/Pixabay-style links + a static curated JSON that we can refresh). No login required.
+## Steps
 
-Every tool ships with a **mock fallback** so a failed API call shows a usable result + a toast, never a blank screen or crash.
+1. **Database — create `profiles` table**
+   - Columns: `id` (uuid, PK, FK → `auth.users.id` cascade), `display_name` (text), `created_at`, `updated_at`.
+   - GRANTs: `authenticated` (select/insert/update/delete on own row), `service_role` (all).
+   - RLS enabled with policies scoped to `auth.uid() = id` for select / insert / update.
+   - Trigger `handle_new_user()` → on `auth.users` insert, create a matching `profiles` row using `raw_user_meta_data->>'full_name'` as initial display name when present.
+   - Trigger to keep `updated_at` fresh.
 
-## Phase 3 — Polish
-- Search across all tools (fuzzy match by name/category/tags).
-- Recently used + Favorites (localStorage).
-- Mobile responsive pass.
-- SEO `head()` per route.
-- Smoke test every route loads.
+2. **New route — `src/routes/profile.tsx`**
+   - Wrapped in `<RequireAuth>` (same pattern as `dashboard.tsx`).
+   - Renders the existing `<Navbar />`.
+   - Three glass cards:
+     - **Account** — read-only email + provider badge (Google/email).
+     - **Display name** — input + Save button. Loads/upserts row in `profiles` via the browser Supabase client (RLS limits to own row). Uses zod validation (1–60 chars, trimmed).
+     - **Change password** — current/new password fields, calls `supabase.auth.updateUser({ password })`. Hidden if the user signed in only via Google (no password set — detected via `user.identities`).
+   - Toast feedback via `sonner` (already used elsewhere).
+
+3. **Navbar — add Profile link**
+   - In `src/components/Navbar.tsx`, add a "Profile" link next to "Dashboard" in the signed-in section (desktop + mobile menu).
+
+4. **Dashboard greeting — read display name from `profiles`**
+   - Small enhancement in `src/routes/dashboard.tsx`: prefer `profiles.display_name` over `user_metadata.full_name` for the `Hi {name}` greeting (best-effort fetch; falls back to current behavior).
 
 ## Technical notes
-- All API calls go through TanStack Start server functions / server routes — no keys on the client.
-- Inputs validated with Zod, secrets normalized (strip stray chars like the bullet that broke face-swap).
-- Long-running Replicate jobs use polling with a hard timeout + mock fallback.
-- No payment UI, no credit counters, no upgrade modals anywhere.
 
-## Confirm before I start
-1. **Scope of Phase 2** — OK to ship all ~60 tools, but expect simpler tools (e.g. Logo Generator) to wrap the image model with a tailored prompt rather than be a full vector editor. Confirm that's acceptable.
-2. **Replicate models** — OK to pick sensible defaults (e.g. `black-forest-labs/flux-schnell` for image, `bytedance/seedance` for video, `cjwbw/rembg` for background removal)? I can swap later.
-3. **Build order** — start with Phase 0 + Phase 1 (shell + dashboard with every tool linked as stubs that already render a working AI call) in the first pass, then flesh out specialized tools? Or do you want a specific category done first (e.g. Audio fully polished first)?
+- All DB access is via the browser `supabase` client; RLS does the authorization. No server function needed for this small surface.
+- Auto-generated `src/integrations/supabase/types.ts` will be refreshed by the migration tool — no manual edit.
+- No new dependencies. Reuses `AuthShell`-style `Field` controls inline for consistency.
+- Route file naming `profile.tsx` maps to `/profile` — registered automatically by the TanStack Router Vite plugin.
+
+## Files
+
+- New: `supabase/migrations/<timestamp>_profiles.sql` (via migration tool)
+- New: `src/routes/profile.tsx`
+- Edit: `src/components/Navbar.tsx` (add Profile link)
+- Edit: `src/routes/dashboard.tsx` (greeting reads `profiles.display_name`)
