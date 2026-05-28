@@ -9,7 +9,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { Navbar } from "@/components/Navbar";
 
 export const Route = createFileRoute("/profile")({
-  head: () => ({ meta: [{ title: "Profile — CreatorHub" }, { name: "description", content: "Manage your account and preferences." }] }),
+  head: () => ({ meta: [{ title: "Profile — CreatorHub" }, { name: "description", content: "Manage your account and preferences." }, { name: "robots", content: "noindex,nofollow" }] }),
   component: () => <RequireAuth><ProfilePage /></RequireAuth>,
 });
 
