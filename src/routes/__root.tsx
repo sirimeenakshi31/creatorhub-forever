@@ -86,12 +86,49 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:description", content: "60+ free AI tools for content, image, audio, and video creators. No paywalls, no credits — just create." },
       { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/1466d91e-597f-4d89-864e-e5f0f1d007f7" },
       { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/1466d91e-597f-4d89-864e-e5f0f1d007f7" },
+      { property: "og:url", content: "https://creatorhubforever.lovable.app/" },
+      { name: "twitter:site", content: "@creatorhub" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico" },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "Organization",
+              "@id": "https://creatorhubforever.lovable.app/#org",
+              name: "CreatorHub by Siri",
+              url: "https://creatorhubforever.lovable.app",
+              logo: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/1466d91e-597f-4d89-864e-e5f0f1d007f7",
+            },
+            {
+              "@type": "WebSite",
+              "@id": "https://creatorhubforever.lovable.app/#website",
+              url: "https://creatorhubforever.lovable.app",
+              name: "CreatorHub by Siri",
+              description: "60+ free AI tools for content, image, audio, and video creators.",
+              publisher: { "@id": "https://creatorhubforever.lovable.app/#org" },
+            },
+            {
+              "@type": "SoftwareApplication",
+              name: "CreatorHub by Siri",
+              applicationCategory: "MultimediaApplication",
+              operatingSystem: "Web",
+              url: "https://creatorhubforever.lovable.app",
+              description: "All-in-one AI creator platform with 60+ free tools for scripts, images, voice, video and more.",
+              offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+            },
+          ],
+        }),
+      },
+    ],
   }),
+
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
