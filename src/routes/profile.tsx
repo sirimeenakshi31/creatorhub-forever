@@ -33,18 +33,24 @@ function ProfilePage() {
     if (!user) return;
     let active = true;
     (async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("display_name")
-        .eq("id", user.id)
-        .maybeSingle();
-      if (!active) return;
-      if (error) toast.error("Couldn't load profile");
-      setDisplayName(data?.display_name ?? "");
-      setLoadingProfile(false);
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (!active) return;
+        if (error) toast.error("Couldn't load profile");
+        setDisplayName(data?.display_name ?? "");
+      } catch {
+        if (active) toast.error("Couldn't load profile");
+      } finally {
+        if (active) setLoadingProfile(false);
+      }
     })();
     return () => { active = false; };
   }, [user]);
+
 
   const onSaveName = async (e: FormEvent) => {
     e.preventDefault();

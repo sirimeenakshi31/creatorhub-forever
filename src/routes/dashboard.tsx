@@ -18,10 +18,12 @@ function DashboardPage() {
   const [profileName, setProfileName] = useState<string | null>(null);
 
   useEffect(() => {
+  useEffect(() => {
     if (!user) return;
     let active = true;
     supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
-      .then(({ data }) => { if (active) setProfileName(data?.display_name ?? null); });
+      .then(({ data }) => { if (active) setProfileName(data?.display_name ?? null); })
+      .catch(() => { /* non-fatal: greeting falls back to email */ });
     return () => { active = false; };
   }, [user]);
 
