@@ -16,13 +16,15 @@ function DashboardPage() {
   const { user, signOut } = useAuth();
   const featured = TOOLS.slice(0, 8);
   const [profileName, setProfileName] = useState<string | null>(null);
-
   useEffect(() => {
     if (!user) return;
     let active = true;
-    supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
-      .then(({ data }) => { if (active) setProfileName(data?.display_name ?? null); })
-      .catch(() => { /* non-fatal: greeting falls back to email */ });
+    (async () => {
+      try {
+        const { data } = await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle();
+        if (active) setProfileName(data?.display_name ?? null);
+      } catch { /* non-fatal: greeting falls back to email */ }
+    })();
     return () => { active = false; };
   }, [user]);
 
