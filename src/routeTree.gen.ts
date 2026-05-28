@@ -9,7 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -29,9 +31,19 @@ import { Route as ApiReplicateRunRouteImport } from './routes/api/replicate.run'
 import { Route as ApiAiTextRouteImport } from './routes/api/ai.text'
 import { Route as ApiAiImageRouteImport } from './routes/api/ai.image'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -130,7 +142,9 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/signup': typeof SignupRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/audio': typeof ApiAudioRoute
   '/api/face-swap': typeof ApiFaceSwapRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -151,7 +165,9 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/signup': typeof SignupRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/audio': typeof ApiAudioRoute
   '/api/face-swap': typeof ApiFaceSwapRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -173,7 +189,9 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/signup': typeof SignupRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/audio': typeof ApiAudioRoute
   '/api/face-swap': typeof ApiFaceSwapRoute
   '/api/transcribe': typeof ApiTranscribeRoute
@@ -196,7 +214,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/profile'
+    | '/robots.txt'
     | '/signup'
+    | '/sitemap.xml'
     | '/api/audio'
     | '/api/face-swap'
     | '/api/transcribe'
@@ -217,7 +237,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/profile'
+    | '/robots.txt'
     | '/signup'
+    | '/sitemap.xml'
     | '/api/audio'
     | '/api/face-swap'
     | '/api/transcribe'
@@ -238,7 +260,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/profile'
+    | '/robots.txt'
     | '/signup'
+    | '/sitemap.xml'
     | '/api/audio'
     | '/api/face-swap'
     | '/api/transcribe'
@@ -260,7 +284,9 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
   SignupRoute: typeof SignupRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiAudioRoute: typeof ApiAudioRoute
   ApiFaceSwapRoute: typeof ApiFaceSwapRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
@@ -279,11 +305,25 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signup': {
       id: '/signup'
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -420,7 +460,9 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
   SignupRoute: SignupRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiAudioRoute: ApiAudioRoute,
   ApiFaceSwapRoute: ApiFaceSwapRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
