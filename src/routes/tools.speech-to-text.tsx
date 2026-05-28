@@ -6,7 +6,18 @@ import { toast } from "sonner";
 import { ToolShell } from "@/components/ToolShell";
 
 export const Route = createFileRoute("/tools/speech-to-text")({
-  head: () => ({ meta: [{ title: "Speech to Text — CreatorHub" }, { name: "description", content: "Transcribe any audio file to text instantly." }] }),
+  head: () => ({
+    meta: [
+      { title: "Speech to Text — Free AI Transcription | CreatorHub" },
+      { name: "description", content: "Transcribe any audio file to text instantly. Free AI transcription for creators." },
+      { property: "og:title", content: "Speech to Text — Free AI Transcription | CreatorHub" },
+      { property: "og:description", content: "Transcribe any audio file to text instantly." },
+      { property: "og:url", content: "https://creatorhubforever.lovable.app/tools/speech-to-text" },
+      { name: "twitter:title", content: "Speech to Text — Free AI Transcription | CreatorHub" },
+      { name: "twitter:description", content: "Transcribe any audio file to text instantly." },
+    ],
+    links: [{ rel: "canonical", href: "https://creatorhubforever.lovable.app/tools/speech-to-text" }],
+  }),
   component: () => <RequireAuth><Page /></RequireAuth>,
 });
 

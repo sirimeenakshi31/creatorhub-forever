@@ -16,11 +16,16 @@ const VOICES = [
 export const Route = createFileRoute("/tools/voice")({
   head: () => ({
     meta: [
-      { title: "AI Voice Generator — CreatorHub" },
-      { name: "description", content: "Turn text into realistic voiceovers in seconds. Free to use." },
+      { title: "AI Voice Generator — Free Text to Speech | CreatorHub" },
+      { name: "description", content: "Turn text into realistic AI voiceovers in seconds. Free and unlimited." },
+      { property: "og:title", content: "AI Voice Generator — Free TTS | CreatorHub" },
+      { property: "og:description", content: "Turn text into realistic voiceovers in seconds." },
+      { property: "og:url", content: "https://creatorhubforever.lovable.app/tools/voice" },
+      { name: "twitter:title", content: "AI Voice Generator — Free TTS | CreatorHub" },
+      { name: "twitter:description", content: "Turn text into realistic voiceovers in seconds." },
     ],
+    links: [{ rel: "canonical", href: "https://creatorhubforever.lovable.app/tools/voice" }],
   }),
-  component: () => <RequireAuth><VoicePage /></RequireAuth>,
 });
 
 function VoicePage() {

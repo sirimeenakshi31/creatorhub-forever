@@ -6,7 +6,18 @@ import { toast } from "sonner";
 import { ToolShell } from "@/components/ToolShell";
 
 export const Route = createFileRoute("/tools/canvas-editor")({
-  head: () => ({ meta: [{ title: "Canvas Editor — CreatorHub" }, { name: "description", content: "Quick drag-and-drop image editor for creators." }] }),
+  head: () => ({
+    meta: [
+      { title: "Canvas Editor — Free Image Editor | CreatorHub" },
+      { name: "description", content: "Quick drag-and-drop image editor for creators. Free and unlimited." },
+      { property: "og:title", content: "Canvas Editor — Free Image Editor | CreatorHub" },
+      { property: "og:description", content: "Quick drag-and-drop image editor for creators." },
+      { property: "og:url", content: "https://creatorhubforever.lovable.app/tools/canvas-editor" },
+      { name: "twitter:title", content: "Canvas Editor — Free Image Editor | CreatorHub" },
+      { name: "twitter:description", content: "Quick drag-and-drop image editor for creators." },
+    ],
+    links: [{ rel: "canonical", href: "https://creatorhubforever.lovable.app/tools/canvas-editor" }],
+  }),
   component: () => <RequireAuth><Editor /></RequireAuth>,
 });
 

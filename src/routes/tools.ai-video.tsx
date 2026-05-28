@@ -6,7 +6,18 @@ import { toast } from "sonner";
 import { ToolShell } from "@/components/ToolShell";
 
 export const Route = createFileRoute("/tools/ai-video")({
-  head: () => ({ meta: [{ title: "AI Video Generator — CreatorHub" }, { name: "description", content: "Generate short cinematic AI videos from a text prompt." }] }),
+  head: () => ({
+    meta: [
+      { title: "AI Video Generator — Free | CreatorHub" },
+      { name: "description", content: "Generate short cinematic AI videos from a text prompt. Free, no credits." },
+      { property: "og:title", content: "AI Video Generator — Free | CreatorHub" },
+      { property: "og:description", content: "Generate short cinematic AI videos from a text prompt." },
+      { property: "og:url", content: "https://creatorhubforever.lovable.app/tools/ai-video" },
+      { name: "twitter:title", content: "AI Video Generator — Free | CreatorHub" },
+      { name: "twitter:description", content: "Generate short cinematic AI videos from a text prompt." },
+    ],
+    links: [{ rel: "canonical", href: "https://creatorhubforever.lovable.app/tools/ai-video" }],
+  }),
   component: () => <RequireAuth><Page /></RequireAuth>,
 });
 
