@@ -18,7 +18,6 @@ function DashboardPage() {
   const [profileName, setProfileName] = useState<string | null>(null);
 
   useEffect(() => {
-  useEffect(() => {
     if (!user) return;
     let active = true;
     supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
