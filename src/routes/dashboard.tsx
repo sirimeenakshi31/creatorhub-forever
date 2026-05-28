@@ -8,7 +8,7 @@ import { TOOLS } from "@/lib/tools";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — CreatorHub" }, { name: "description", content: "Your creator dashboard." }] }),
+  head: () => ({ meta: [{ title: "Dashboard — CreatorHub" }, { name: "description", content: "Your creator dashboard." }, { name: "robots", content: "noindex,nofollow" }] }),
   component: () => <RequireAuth><DashboardPage /></RequireAuth>,
 });
 

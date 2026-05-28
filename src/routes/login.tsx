@@ -10,7 +10,7 @@ export const Route = createFileRoute("/login")({
   validateSearch: (s: Record<string, unknown>) => ({
     redirect: typeof s.redirect === "string" ? s.redirect : "/dashboard",
   }),
-  head: () => ({ meta: [{ title: "Sign in — CreatorHub" }] }),
+  head: () => ({ meta: [{ title: "Sign in — CreatorHub" }, { name: "description", content: "Sign in to your CreatorHub account." }, { name: "robots", content: "noindex,nofollow" }] }),
   component: LoginPage,
 });
 

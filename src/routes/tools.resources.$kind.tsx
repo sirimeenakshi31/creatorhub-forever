@@ -91,10 +91,18 @@ export const Route = createFileRoute("/tools/resources/$kind")({
     if (!data) throw new Error("Resource not found");
     return { data };
   },
-  head: ({ loaderData }) => ({
+  head: ({ loaderData, params }) => ({
     meta: loaderData ? [
       { title: `${loaderData.data.title} — CreatorHub` },
       { name: "description", content: loaderData.data.description },
+      { property: "og:title", content: `${loaderData.data.title} — CreatorHub` },
+      { property: "og:description", content: loaderData.data.description },
+      { property: "og:url", content: `https://creatorhubforever.lovable.app/tools/resources/${params.kind}` },
+      { name: "twitter:title", content: `${loaderData.data.title} — CreatorHub` },
+      { name: "twitter:description", content: loaderData.data.description },
+    ] : [],
+    links: loaderData ? [
+      { rel: "canonical", href: `https://creatorhubforever.lovable.app/tools/resources/${params.kind}` },
     ] : [],
   }),
   component: () => <RequireAuth><Page /></RequireAuth>,

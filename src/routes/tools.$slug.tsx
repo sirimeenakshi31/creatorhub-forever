@@ -13,10 +13,18 @@ export const Route = createFileRoute("/tools/$slug")({
     if (!tool) throw notFound();
     return { tool };
   },
-  head: ({ loaderData }) => ({
+  head: ({ loaderData, params }) => ({
     meta: loaderData?.tool ? [
-      { title: `${loaderData.tool.name} — CreatorHub` },
+      { title: `${loaderData.tool.name} — Free AI Tool | CreatorHub` },
       { name: "description", content: loaderData.tool.description },
+      { property: "og:title", content: `${loaderData.tool.name} — Free AI Tool | CreatorHub` },
+      { property: "og:description", content: loaderData.tool.description },
+      { property: "og:url", content: `https://creatorhubforever.lovable.app/tools/${params.slug}` },
+      { name: "twitter:title", content: `${loaderData.tool.name} — Free AI Tool | CreatorHub` },
+      { name: "twitter:description", content: loaderData.tool.description },
+    ] : [],
+    links: loaderData?.tool ? [
+      { rel: "canonical", href: `https://creatorhubforever.lovable.app/tools/${params.slug}` },
     ] : [],
   }),
   component: () => <RequireAuth><ToolRouter /></RequireAuth>,

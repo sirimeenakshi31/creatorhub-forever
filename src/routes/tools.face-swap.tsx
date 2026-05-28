@@ -7,11 +7,16 @@ import { ToolShell } from "@/components/ToolShell";
 export const Route = createFileRoute("/tools/face-swap")({
   head: () => ({
     meta: [
-      { title: "AI Character / Face Swap — CreatorHub" },
+      { title: "AI Face Swap — Free Character & Face Swap | CreatorHub" },
       { name: "description", content: "Swap faces between two photos in seconds. Free AI tool for creators." },
+      { property: "og:title", content: "AI Face Swap — Free | CreatorHub" },
+      { property: "og:description", content: "Swap faces between two photos in seconds. Free AI tool for creators." },
+      { property: "og:url", content: "https://creatorhubforever.lovable.app/tools/face-swap" },
+      { name: "twitter:title", content: "AI Face Swap — Free | CreatorHub" },
+      { name: "twitter:description", content: "Swap faces between two photos in seconds." },
     ],
+    links: [{ rel: "canonical", href: "https://creatorhubforever.lovable.app/tools/face-swap" }],
   }),
-  component: () => <RequireAuth><SwapPage /></RequireAuth>,
 });
 
 function readAsDataUrl(file: File): Promise<string> {
