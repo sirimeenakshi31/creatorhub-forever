@@ -7,14 +7,19 @@ import { TOOLS, CATEGORIES, type Tool, type ToolCategory } from "@/lib/tools";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "CreatorHub — All-in-one AI tools for creators" },
-      { name: "description", content: "60+ free AI tools for audio, video, image and content creators. No credits, no paywalls — just create." },
-      { property: "og:title", content: "CreatorHub — All-in-one AI tools for creators" },
-      { property: "og:description", content: "60+ free AI tools for audio, video, image and content creators." },
+      { title: "CreatorHub by Siri — 60+ Free AI Tools for Creators" },
+      { name: "description", content: "All-in-one AI creator platform: generate scripts, captions, images, voiceovers, videos, thumbnails and more. 60+ free AI tools, no credits, no paywalls." },
+      { property: "og:title", content: "CreatorHub by Siri — 60+ Free AI Tools for Creators" },
+      { property: "og:description", content: "All-in-one AI creator platform: scripts, captions, images, voiceovers, videos and more. 60+ free AI tools." },
+      { property: "og:url", content: "https://creatorhubforever.lovable.app/" },
+      { name: "twitter:title", content: "CreatorHub by Siri — 60+ Free AI Tools for Creators" },
+      { name: "twitter:description", content: "All-in-one AI creator platform: scripts, captions, images, voiceovers, videos and more." },
     ],
+    links: [{ rel: "canonical", href: "https://creatorhubforever.lovable.app/" }],
   }),
   component: Dashboard,
 });
+
 
 function getRoute(t: Tool): string {
   // Dedicated routes for non-generic tools
