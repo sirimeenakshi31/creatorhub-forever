@@ -7,9 +7,12 @@ import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/use-auth";
 import { AuthShell, Field, Divider } from "./login";
 
-export const Route = createFileRoute("/signup")({
   validateSearch: (s: Record<string, unknown>) => ({
-    redirect: typeof s.redirect === "string" ? s.redirect : "/dashboard",
+    redirect:
+      typeof s.redirect === "string" && s.redirect.startsWith("/") && !s.redirect.startsWith("//")
+        ? s.redirect
+        : "/dashboard",
+  }),
   }),
   head: () => ({ meta: [{ title: "Create account — CreatorHub" }, { name: "description", content: "Create your free CreatorHub account." }, { name: "robots", content: "noindex,nofollow" }] }),
   component: SignupPage,
