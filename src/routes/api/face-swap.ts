@@ -130,5 +130,3 @@ async function readLimited(request: Request, maxBytes: number): Promise<string |
   for (const c of chunks) { merged.set(c, offset); offset += c.byteLength; }
   return new TextDecoder().decode(merged);
 }
-
-}
