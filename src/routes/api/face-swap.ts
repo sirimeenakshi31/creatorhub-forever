@@ -97,14 +97,38 @@ export const Route = createFileRoute("/api/face-swap")({
     },
   },
 });
-
-function normalizeSecret(value: string | undefined): string {
-  return (value ?? "").trim().replace(/^Bearer\s+/i, "").replace(/^['"]|['"]$/g, "");
-}
-
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json", ...CORS },
   });
+}
+
+async function readLimited(request: Request, maxBytes: number): Promise<string | null> {
+  const body = request.body;
+  if (!body) {
+    const text = await request.text();
+    return text.length > maxBytes ? null : text;
+  }
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    if (value) {
+      total += value.byteLength;
+      if (total > maxBytes) {
+        try { await reader.cancel(); } catch { /* ignore */ }
+        return null;
+      }
+      chunks.push(value);
+    }
+  }
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) { merged.set(c, offset); offset += c.byteLength; }
+  return new TextDecoder().decode(merged);
+}
+
 }
