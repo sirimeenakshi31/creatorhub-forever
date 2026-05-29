@@ -19,7 +19,12 @@ export const Route = createFileRoute("/api/face-swap")({
       POST: async ({ request }) => {
         const limited = rateLimit(request, "face-swap", 3, 60_000);
         if (limited) return limited;
+        const contentLength = Number(request.headers.get("content-length") ?? 0);
+        if (contentLength > 10 * 1024 * 1024) {
+          return json({ error: "Payload too large (max 10MB)" }, 413);
+        }
         try {
+
           const { targetImage, sourceFace } = (await request.json().catch(() => ({}))) as {
             targetImage?: string;
             sourceFace?: string;
