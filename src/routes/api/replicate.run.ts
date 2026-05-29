@@ -22,10 +22,15 @@ export const Route = createFileRoute("/api/replicate/run")({
         const limited = rateLimit(request, "replicate-run", 5, 60_000);
         if (limited) return limited;
         try {
-          const body = (await request.json().catch(() => ({}))) as { model?: string; image?: string };
-          if (!body.model || !MODELS[body.model]) return json({ error: "Unknown model" }, 400);
-          if (!body.image) return json({ error: "Image required" }, 400);
-          const tokenRaw = process.env.REPLICATE_API_TOKEN;
+      POST: async ({ request }) => {
+        const limited = rateLimit(request, "replicate-run", 5, 60_000);
+        if (limited) return limited;
+        const contentLength = Number(request.headers.get("content-length") ?? 0);
+        if (contentLength > 10 * 1024 * 1024) {
+          return json({ error: "Payload too large (max 10MB)" }, 413);
+        }
+        try {
+
           const token = tokenRaw?.trim().replace(/^["']|["']$/g, "").replace(/^Bearer\s+/i, "");
           if (!token || !/^r8_[A-Za-z0-9_-]+$/.test(token)) {
             return json({ url: body.image, mock: true, notice: "Set REPLICATE_API_TOKEN to enable real processing — returning the original image." });
