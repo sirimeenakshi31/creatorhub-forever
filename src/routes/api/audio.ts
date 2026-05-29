@@ -60,15 +60,14 @@ export const Route = createFileRoute("/api/audio")({
               }),
             }
           );
+          if (!resp.ok) {
+            const t = await resp.text();
             return new Response(JSON.stringify({ error: `ElevenLabs ${resp.status}: ${t.slice(0, 200)}` }), {
               status: 502,
               headers: { "Content-Type": "application/json", ...CORS },
             });
-
-              status: 502,
-              headers: { "Content-Type": "application/json", ...CORS },
-            });
           }
+
 
           const audio = await resp.arrayBuffer();
           return new Response(audio, {
