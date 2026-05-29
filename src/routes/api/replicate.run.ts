@@ -21,14 +21,19 @@ export const Route = createFileRoute("/api/replicate/run")({
       POST: async ({ request }) => {
         const limited = rateLimit(request, "replicate-run", 5, 60_000);
         if (limited) return limited;
+        const MAX_BYTES = 10 * 1024 * 1024;
         const contentLength = Number(request.headers.get("content-length") ?? 0);
-        if (contentLength > 10 * 1024 * 1024) {
+        if (contentLength > MAX_BYTES) {
           return json({ error: "Payload too large (max 10MB)" }, 413);
         }
         try {
-          const body = (await request.json().catch(() => ({}))) as { model?: string; image?: string };
+          const raw = await readLimited(request, MAX_BYTES);
+          if (raw === null) return json({ error: "Payload too large (max 10MB)" }, 413);
+          let body: { model?: string; image?: string } = {};
+          try { body = raw ? JSON.parse(raw) : {}; } catch { body = {}; }
           if (!body.model || !MODELS[body.model]) return json({ error: "Unknown model" }, 400);
           if (!body.image) return json({ error: "Image required" }, 400);
+
           const tokenRaw = process.env.REPLICATE_API_TOKEN;
           const token = tokenRaw?.trim().replace(/^["']|["']$/g, "").replace(/^Bearer\s+/i, "");
 
