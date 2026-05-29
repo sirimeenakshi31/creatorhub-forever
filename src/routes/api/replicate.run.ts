@@ -21,10 +21,6 @@ export const Route = createFileRoute("/api/replicate/run")({
       POST: async ({ request }) => {
         const limited = rateLimit(request, "replicate-run", 5, 60_000);
         if (limited) return limited;
-        try {
-      POST: async ({ request }) => {
-        const limited = rateLimit(request, "replicate-run", 5, 60_000);
-        if (limited) return limited;
         const contentLength = Number(request.headers.get("content-length") ?? 0);
         if (contentLength > 10 * 1024 * 1024) {
           return json({ error: "Payload too large (max 10MB)" }, 413);
