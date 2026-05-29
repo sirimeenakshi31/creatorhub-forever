@@ -1,49 +1,41 @@
 
 ## Goal
 
-Add a simple, protected profile page at `/profile` where signed-in users can:
-- View their account email (read-only)
-- Edit their display name (stored in a `profiles` table)
-- Change their password (for email/password users)
+Stop a single render-time exception from blanking the whole live site. The current `errorComponent` on the root route only catches errors thrown inside TanStack Router's tree-walking machinery (loaders, route components). A throw inside `AuthProvider`, the `Toaster`, or any deeply-nested child during render is not caught and crashes the whole React tree, producing the "Something went wrong" full-page failure on production.
 
-## Scope
+## Changes
 
-Small, focused addition. Keeps the existing glassmorphism style, `RequireAuth` pattern, and Supabase auth flow already in use.
+### 1. New `src/components/error-boundary.tsx`
 
-## Steps
+A small class component `<AppErrorBoundary>` implementing `componentDidCatch` / `getDerivedStateFromError`. On error it:
+- Logs the raw `Error` via `console.error(error)` (preserves stack for Server Logs).
+- Renders a self-contained branded fallback (same visual language as the existing root `ErrorComponent`: heading, message, "Try again" + "Go home" buttons).
+- "Try again" resets local error state (`setState({ error: null })`) and calls `window.location.reload()` as a hard fallback.
+- Uses only Tailwind tokens already in the design system — no new dependencies, no imports from app code that could themselves fail.
 
-1. **Database — create `profiles` table**
-   - Columns: `id` (uuid, PK, FK → `auth.users.id` cascade), `display_name` (text), `created_at`, `updated_at`.
-   - GRANTs: `authenticated` (select/insert/update/delete on own row), `service_role` (all).
-   - RLS enabled with policies scoped to `auth.uid() = id` for select / insert / update.
-   - Trigger `handle_new_user()` → on `auth.users` insert, create a matching `profiles` row using `raw_user_meta_data->>'full_name'` as initial display name when present.
-   - Trigger to keep `updated_at` fresh.
+### 2. Wrap the app in `src/routes/__root.tsx`
 
-2. **New route — `src/routes/profile.tsx`**
-   - Wrapped in `<RequireAuth>` (same pattern as `dashboard.tsx`).
-   - Renders the existing `<Navbar />`.
-   - Three glass cards:
-     - **Account** — read-only email + provider badge (Google/email).
-     - **Display name** — input + Save button. Loads/upserts row in `profiles` via the browser Supabase client (RLS limits to own row). Uses zod validation (1–60 chars, trimmed).
-     - **Change password** — current/new password fields, calls `supabase.auth.updateUser({ password })`. Hidden if the user signed in only via Google (no password set — detected via `user.identities`).
-   - Toast feedback via `sonner` (already used elsewhere).
+Inside `RootComponent`, wrap children with the new boundary so it sits above `AuthProvider`, `Outlet`, and `Toaster`:
 
-3. **Navbar — add Profile link**
-   - In `src/components/Navbar.tsx`, add a "Profile" link next to "Dashboard" in the signed-in section (desktop + mobile menu).
+```tsx
+<QueryClientProvider client={queryClient}>
+  <AppErrorBoundary>
+    <AuthProvider>
+      <Outlet />
+      <Toaster position="top-center" richColors />
+    </AuthProvider>
+  </AppErrorBoundary>
+</QueryClientProvider>
+```
 
-4. **Dashboard greeting — read display name from `profiles`**
-   - Small enhancement in `src/routes/dashboard.tsx`: prefer `profiles.display_name` over `user_metadata.full_name` for the `Hi {name}` greeting (best-effort fetch; falls back to current behavior).
+Keep the existing route-level `errorComponent` and `notFoundComponent` untouched — they still handle loader/router errors first; the class boundary is the safety net for everything else.
 
-## Technical notes
+### 3. Register `defaultErrorComponent` on the router in `src/router.tsx`
 
-- All DB access is via the browser `supabase` client; RLS does the authorization. No server function needed for this small surface.
-- Auto-generated `src/integrations/supabase/types.ts` will be refreshed by the migration tool — no manual edit.
-- No new dependencies. Reuses `AuthShell`-style `Field` controls inline for consistency.
-- Route file naming `profile.tsx` maps to `/profile` — registered automatically by the TanStack Router Vite plugin.
+Reuse the same branded fallback (extracted into the boundary file or inlined) as `defaultErrorComponent` so any descendant route without its own `errorComponent` also gets a non-crashing fallback instead of bubbling to the root.
 
-## Files
+## Out of scope
 
-- New: `supabase/migrations/<timestamp>_profiles.sql` (via migration tool)
-- New: `src/routes/profile.tsx`
-- Edit: `src/components/Navbar.tsx` (add Profile link)
-- Edit: `src/routes/dashboard.tsx` (greeting reads `profiles.display_name`)
+- No UI redesign, no new features, no auth/data logic changes.
+- No changes to existing API routes, loaders, or server functions.
+- The SSR/h3 wrapper hardening (separate `src/server.ts` work) is not part of this task — this plan only addresses render-time error boundary coverage.

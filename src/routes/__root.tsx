@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/hooks/use-auth";
+import { AppErrorBoundary } from "@/components/error-boundary";
 
 import appCss from "../styles.css?url";
 
@@ -154,10 +155,12 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Outlet />
-        <Toaster position="top-center" richColors />
-      </AuthProvider>
+      <AppErrorBoundary>
+        <AuthProvider>
+          <Outlet />
+          <Toaster position="top-center" richColors />
+        </AuthProvider>
+      </AppErrorBoundary>
     </QueryClientProvider>
   );
 }
