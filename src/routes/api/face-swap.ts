@@ -19,19 +19,23 @@ export const Route = createFileRoute("/api/face-swap")({
       POST: async ({ request }) => {
         const limited = rateLimit(request, "face-swap", 3, 60_000);
         if (limited) return limited;
+        const MAX_BYTES = 10 * 1024 * 1024;
         const contentLength = Number(request.headers.get("content-length") ?? 0);
-        if (contentLength > 10 * 1024 * 1024) {
+        if (contentLength > MAX_BYTES) {
           return json({ error: "Payload too large (max 10MB)" }, 413);
         }
         try {
-
-          const { targetImage, sourceFace } = (await request.json().catch(() => ({}))) as {
-            targetImage?: string;
-            sourceFace?: string;
-          };
+          // Enforce real size cap by reading the body with a byte counter
+          // (Content-Length is client-controlled and can be spoofed).
+          const raw = await readLimited(request, MAX_BYTES);
+          if (raw === null) return json({ error: "Payload too large (max 10MB)" }, 413);
+          let parsed: { targetImage?: string; sourceFace?: string } = {};
+          try { parsed = raw ? JSON.parse(raw) : {}; } catch { parsed = {}; }
+          const { targetImage, sourceFace } = parsed;
           if (!targetImage || !sourceFace) {
             return json({ error: "targetImage and sourceFace are required (data URLs or http URLs)" }, 400);
           }
+
           const token = normalizeSecret(process.env.REPLICATE_API_TOKEN);
           if (!token || !REPLICATE_TOKEN_PATTERN.test(token)) {
             return json({ output: targetImage, mock: true, notice: "Set REPLICATE_API_TOKEN to enable real face-swap — returning your target image." });
