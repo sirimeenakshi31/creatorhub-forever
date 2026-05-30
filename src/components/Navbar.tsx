@@ -66,7 +66,7 @@ export function Navbar() {
           {links.map((l) => (
             <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg hover:bg-accent text-sm">{l.label}</a>
           ))}
-          {user ? (
+          {!loading && (user ? (
             <>
               <Link to="/dashboard" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg hover:bg-accent text-sm">Dashboard</Link>
               <Link to="/profile" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg hover:bg-accent text-sm">Profile</Link>
@@ -77,7 +77,7 @@ export function Navbar() {
               <Link to="/login" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg hover:bg-accent text-sm">Sign in</Link>
               <Link to="/signup" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg hover:bg-accent text-sm">Get started</Link>
             </>
-          )}
+          ))}
         </div>
       )}
     </header>
