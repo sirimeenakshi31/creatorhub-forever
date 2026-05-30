@@ -33,7 +33,13 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" search={{ redirect: location.pathname + location.searchStr } as never} replace />;
+    const currentPath = location.pathname || "/";
+    const currentSearch = location.searchStr || "";
+    const redirect = currentPath === "/login" || currentPath === "/signup"
+      ? "/dashboard"
+      : `${currentPath}${currentSearch}`;
+
+    return <Navigate to="/login" search={{ redirect } as never} replace />;
   }
 
   return <>{children}</>;
