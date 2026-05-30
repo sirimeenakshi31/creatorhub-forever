@@ -17,16 +17,17 @@ function DashboardPage() {
   const featured = TOOLS.slice(0, 8);
   const [profileName, setProfileName] = useState<string | null>(null);
   useEffect(() => {
-    if (!user) return;
+    const userId = user?.id;
+    if (!userId) return;
     let active = true;
     (async () => {
       try {
-        const { data } = await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle();
+        const { data } = await supabase.from("profiles").select("display_name").eq("id", userId).maybeSingle();
         if (active) setProfileName(data?.display_name ?? null);
       } catch { /* non-fatal: greeting falls back to email */ }
     })();
     return () => { active = false; };
-  }, [user]);
+  }, [user?.id]);
 
   const name = profileName || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "creator";
 
