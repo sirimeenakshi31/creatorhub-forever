@@ -30,14 +30,18 @@ function ProfilePage() {
   const hasPassword = providers.includes("email");
 
   useEffect(() => {
-    if (!user) return;
+    const userId = user?.id;
+    if (!userId) {
+      setLoadingProfile(false);
+      return;
+    }
     let active = true;
     (async () => {
       try {
         const { data, error } = await supabase
           .from("profiles")
           .select("display_name")
-          .eq("id", user.id)
+          .eq("id", userId)
           .maybeSingle();
         if (!active) return;
         if (error) toast.error("Couldn't load profile");
@@ -49,21 +53,27 @@ function ProfilePage() {
       }
     })();
     return () => { active = false; };
-  }, [user]);
+  }, [user?.id]);
 
 
   const onSaveName = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    const userId = user?.id;
+    if (!userId) return;
     const parsed = displayNameSchema.safeParse(displayName);
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     setSavingName(true);
-    const { error } = await supabase
-      .from("profiles")
-      .upsert({ id: user.id, display_name: parsed.data }, { onConflict: "id" });
-    setSavingName(false);
-    if (error) return toast.error(error.message);
-    toast.success("Display name updated");
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .upsert({ id: userId, display_name: parsed.data }, { onConflict: "id" });
+      if (error) return toast.error(error.message);
+      toast.success("Display name updated");
+    } catch {
+      toast.error("Couldn't save display name");
+    } finally {
+      setSavingName(false);
+    }
   };
 
   const onChangePassword = async (e: FormEvent) => {
@@ -72,12 +82,17 @@ function ProfilePage() {
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     if (newPassword !== confirmPassword) return toast.error("Passwords don't match");
     setSavingPassword(true);
-    const { error } = await supabase.auth.updateUser({ password: parsed.data });
-    setSavingPassword(false);
-    if (error) return toast.error(error.message);
-    setNewPassword("");
-    setConfirmPassword("");
-    toast.success("Password updated");
+    try {
+      const { error } = await supabase.auth.updateUser({ password: parsed.data });
+      if (error) return toast.error(error.message);
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success("Password updated");
+    } catch {
+      toast.error("Couldn't update password");
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
   return (

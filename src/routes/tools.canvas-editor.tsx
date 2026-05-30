@@ -40,6 +40,7 @@ function Editor() {
   const sorted = [...layers].sort((a, b) => (a.type === "rect" && b.type !== "rect" ? -1 : 0));
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
     const c = ref.current; if (!c) return;
     const ctx = c.getContext("2d"); if (!ctx) return;
     ctx.fillStyle = bg; ctx.fillRect(0, 0, c.width, c.height);
@@ -73,7 +74,9 @@ function Editor() {
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    const rect = ref.current!.getBoundingClientRect();
+    const canvas = ref.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) * (800 / rect.width);
     const y = (e.clientY - rect.top) * (600 / rect.height);
     // pick topmost layer (excluding bg)
@@ -94,7 +97,9 @@ function Editor() {
   };
   const onPointerMove = (e: React.PointerEvent) => {
     if (!drag) return;
-    const rect = ref.current!.getBoundingClientRect();
+    const canvas = ref.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) * (800 / rect.width);
     const y = (e.clientY - rect.top) * (600 / rect.height);
     setLayers((p) => p.map((l) => l.id === drag.id ? { ...l, x: x - drag.dx, y: y - drag.dy } : l));
@@ -104,7 +109,9 @@ function Editor() {
   const sel = layers.find((l) => l.id === selected);
 
   const download = () => {
-    const c = ref.current!;
+    if (typeof document === "undefined") return;
+    const c = ref.current;
+    if (!c) return;
     const a = document.createElement("a");
     a.href = c.toDataURL("image/png"); a.download = "creatorhub-design.png"; a.click();
     toast.success("Exported");

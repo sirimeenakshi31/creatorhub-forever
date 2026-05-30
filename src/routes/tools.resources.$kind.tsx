@@ -1,4 +1,4 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
+import { createFileRoute, notFound, useParams } from "@tanstack/react-router";
 import { RequireAuth } from "@/components/RequireAuth";
 import { ExternalLink } from "lucide-react";
 import { ToolShell } from "@/components/ToolShell";
@@ -88,11 +88,11 @@ const DATA: Record<string, { title: string; eyebrow: string; description: string
 export const Route = createFileRoute("/tools/resources/$kind")({
   loader: ({ params }) => {
     const data = DATA[params.kind];
-    if (!data) throw new Error("Resource not found");
+    if (!data) throw notFound();
     return { data };
   },
   head: ({ loaderData, params }) => ({
-    meta: loaderData ? [
+    meta: loaderData?.data ? [
       { title: `${loaderData.data.title} — CreatorHub` },
       { name: "description", content: loaderData.data.description },
       { property: "og:title", content: `${loaderData.data.title} — CreatorHub` },
@@ -101,7 +101,7 @@ export const Route = createFileRoute("/tools/resources/$kind")({
       { name: "twitter:title", content: `${loaderData.data.title} — CreatorHub` },
       { name: "twitter:description", content: loaderData.data.description },
     ] : [],
-    links: loaderData ? [
+    links: loaderData?.data ? [
       { rel: "canonical", href: `https://creatorhubforever.lovable.app/tools/resources/${params.kind}` },
     ] : [],
   }),

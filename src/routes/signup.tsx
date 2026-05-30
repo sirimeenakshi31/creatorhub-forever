@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/use-auth";
-import { AuthShell, Field, Divider } from "./login";
+import { AuthShell, Field, Divider, safeRedirect } from "./login";
+import { getAuthUnavailableMessage, isSupabaseConfigured } from "@/lib/supabase-config";
 
 export const Route = createFileRoute("/signup")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -25,26 +26,38 @@ function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const authReady = typeof window !== "undefined" && isSupabaseConfigured();
 
   useEffect(() => {
-    if (!authLoading && user) navigate({ to: decodeURIComponent(redirect) as string, replace: true });
+    if (!authLoading && user) navigate({ to: safeRedirect(redirect), replace: true });
   }, [authLoading, user, navigate, redirect]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!authReady) return toast.error(getAuthUnavailableMessage());
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email, password,
-      options: { emailRedirectTo: `${window.location.origin}/dashboard` },
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Account created — check your email to confirm.");
+    try {
+      const { error } = await supabase.auth.signUp({
+        email, password,
+        options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+      });
+      if (error) return toast.error(error.message);
+      toast.success("Account created — check your email to confirm.");
+    } catch {
+      toast.error(getAuthUnavailableMessage());
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onGoogle = async () => {
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/dashboard" });
-    if (result.error) toast.error("Google sign-up failed");
+    if (!authReady) return toast.error(getAuthUnavailableMessage());
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/dashboard" });
+      if (result.error) toast.error("Google sign-up failed");
+    } catch {
+      toast.error("Google sign-up failed");
+    }
   };
 
   return <AuthShell title="Create your account" subtitle="Free forever. No credits, no paywalls.">
