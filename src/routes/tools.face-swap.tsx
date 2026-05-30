@@ -17,6 +17,7 @@ export const Route = createFileRoute("/tools/face-swap")({
     ],
     links: [{ rel: "canonical", href: "https://creatorhubforever.lovable.app/tools/face-swap" }],
   }),
+  component: () => <RequireAuth><SwapPage /></RequireAuth>,
 });
 
 function readAsDataUrl(file: File): Promise<string> {
