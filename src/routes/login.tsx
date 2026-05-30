@@ -29,7 +29,7 @@ function LoginPage() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      navigate({ to: decodeURIComponent(redirect) as string, replace: true });
+      navigate({ to: safeRedirect(redirect), replace: true });
     }
   }, [authLoading, user, navigate, redirect]);
 
@@ -108,6 +108,15 @@ export function Field({ label, type = "text", value, onChange, required, autoCom
 
 export function Divider() {
   return <div className="flex items-center gap-3 text-xs text-muted-foreground"><div className="h-px flex-1 bg-border" /> or <div className="h-px flex-1 bg-border" /></div>;
+}
+
+export function safeRedirect(value: string) {
+  try {
+    const decoded = decodeURIComponent(value);
+    return decoded.startsWith("/") && !decoded.startsWith("//") ? decoded : "/dashboard";
+  } catch {
+    return "/dashboard";
+  }
 }
 
 function GoogleIcon() {
