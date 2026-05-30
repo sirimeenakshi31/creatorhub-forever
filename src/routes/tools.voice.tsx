@@ -26,6 +26,7 @@ export const Route = createFileRoute("/tools/voice")({
     ],
     links: [{ rel: "canonical", href: "https://creatorhubforever.lovable.app/tools/voice" }],
   }),
+  component: () => <RequireAuth><VoicePage /></RequireAuth>,
 });
 
 function VoicePage() {
