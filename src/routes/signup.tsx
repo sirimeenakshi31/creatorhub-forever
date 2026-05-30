@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/use-auth";
-import { AuthShell, Field, Divider } from "./login";
+import { AuthShell, Field, Divider, safeRedirect } from "./login";
 import { getAuthUnavailableMessage, isSupabaseConfigured } from "@/lib/supabase-config";
 
 export const Route = createFileRoute("/signup")({
@@ -29,7 +29,7 @@ function SignupPage() {
   const authReady = typeof window !== "undefined" && isSupabaseConfigured();
 
   useEffect(() => {
-    if (!authLoading && user) navigate({ to: decodeURIComponent(redirect) as string, replace: true });
+    if (!authLoading && user) navigate({ to: safeRedirect(redirect), replace: true });
   }, [authLoading, user, navigate, redirect]);
 
   const onSubmit = async (e: FormEvent) => {
