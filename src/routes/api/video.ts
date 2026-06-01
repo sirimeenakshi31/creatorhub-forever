@@ -15,7 +15,6 @@ export const Route = createFileRoute("/api/video")({
       POST: async ({ request }) => {
         const limited = rateLimit(request, "video", 3, 60_000);
         if (limited) return limited;
-        const MOCK_VIDEO = "https://cdn.pixabay.com/video/2024/02/27/202289-916715234_tiny.mp4";
         try {
           const { prompt } = (await request.json().catch(() => ({}))) as { prompt?: string };
           if (!prompt || typeof prompt !== "string" || prompt.length < 1 || prompt.length > 1500) {
@@ -23,12 +22,14 @@ export const Route = createFileRoute("/api/video")({
           }
           const tokenRaw = process.env.REPLICATE_API_TOKEN;
           const token = tokenRaw?.trim().replace(/^["']|["']$/g, "").replace(/^Bearer\s+/i, "");
-          if (!token || !/^r8_[A-Za-z0-9_-]+$/.test(token)) {
-            // Graceful mock fallback so the UI never sees a 500.
-            return json({ url: MOCK_VIDEO, mock: true, notice: "Using sample video — set REPLICATE_API_TOKEN to enable real generation." });
+          if (!token) {
+            return json({ error: "Video generation is not configured. REPLICATE_API_TOKEN is missing on the server." }, 503);
+          }
+          if (!/^r8_[A-Za-z0-9_-]+$/.test(token)) {
+            return json({ error: "Invalid REPLICATE_API_TOKEN format. Token must start with 'r8_'." }, 503);
           }
 
-          // Use luma/ray-flash-2-540p — fast 5s text-to-video
+          // luma/ray-flash-2-540p — fast 5s text-to-video
           const create = await fetch("https://api.replicate.com/v1/models/luma/ray-flash-2-540p/predictions", {
             method: "POST",
             headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "wait" },
@@ -38,7 +39,7 @@ export const Route = createFileRoute("/api/video")({
           if (!create.ok) return json({ error: `Replicate ${create.status}: ${created?.detail || JSON.stringify(created).slice(0, 200)}` }, 502);
 
           let pred = created;
-          for (let i = 0; i < 60 && !["succeeded", "failed", "canceled"].includes(pred.status); i++) {
+          for (let i = 0; i < 120 && !["succeeded", "failed", "canceled"].includes(pred.status); i++) {
             await new Promise((r) => setTimeout(r, 2500));
             const poll = await fetch(`https://api.replicate.com/v1/predictions/${pred.id}`, {
               headers: { Authorization: `Bearer ${token}` },
@@ -47,6 +48,7 @@ export const Route = createFileRoute("/api/video")({
           }
           if (pred.status !== "succeeded") return json({ error: `Replicate ${pred.status}: ${pred.error || "timed out"}` }, 502);
           const out = Array.isArray(pred.output) ? pred.output[0] : pred.output;
+          if (!out) return json({ error: "Replicate returned no video URL" }, 502);
           return json({ url: out });
         } catch (e) {
           return json({ error: e instanceof Error ? e.message : "Unknown error" }, 500);

@@ -37,11 +37,10 @@ function Page() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `Error ${res.status}`);
+      if (!data?.url) throw new Error("No video URL returned by the server");
       setUrl(data.url);
-      if (data.mock && data.notice) toast.message(data.notice);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Video generation failed");
-      setUrl("https://cdn.pixabay.com/video/2024/02/27/202289-916715234_tiny.mp4");
     } finally { setLoading(false); }
   };
 
