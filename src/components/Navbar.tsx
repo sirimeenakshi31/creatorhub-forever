@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { Sparkles, Search, Menu, X, LayoutDashboard, LogOut, User } from "lucide-react";
+import { Sparkles, Search, Menu, X, LayoutDashboard, User } from "lucide-react";
 import { useState } from "react";
-import { useAuth } from "@/hooks/use-auth";
 
 const links = [
   { href: "/#tools", label: "AI Tools" },
@@ -14,7 +13,6 @@ const links = [
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
-  const { user, loading, signOut } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 px-4 pt-4">
@@ -38,24 +36,12 @@ export function Navbar() {
               className="h-9 w-48 rounded-lg bg-accent/40 border border-border pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
             />
           </div>
-          {!loading && (user ? (
-            <>
-              <Link to="/dashboard" className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg border border-border text-sm hover:bg-accent">
-                <LayoutDashboard className="size-4" /> Dashboard
-              </Link>
-              <Link to="/profile" className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent" aria-label="Profile">
-                <User className="size-4" />
-              </Link>
-              <button onClick={signOut} className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent" aria-label="Sign out">
-                <LogOut className="size-4" />
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" className="h-9 px-3 inline-flex items-center rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent">Sign in</Link>
-              <Link to="/signup" className="h-9 px-4 inline-flex items-center rounded-lg bg-gradient-brand text-primary-foreground text-sm font-medium shadow-glow hover:opacity-90 transition">Get started</Link>
-            </>
-          ))}
+          <Link to="/dashboard" className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg border border-border text-sm hover:bg-accent">
+            <LayoutDashboard className="size-4" /> Dashboard
+          </Link>
+          <Link to="/profile" className="h-9 px-3 inline-flex items-center gap-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent" aria-label="Profile">
+            <User className="size-4" />
+          </Link>
         </div>
         <button className="lg:hidden ml-auto p-2" onClick={() => setOpen(!open)} aria-label="Menu">
           {open ? <X className="size-5" /> : <Menu className="size-5" />}
@@ -66,18 +52,8 @@ export function Navbar() {
           {links.map((l) => (
             <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg hover:bg-accent text-sm">{l.label}</a>
           ))}
-          {!loading && (user ? (
-            <>
-              <Link to="/dashboard" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg hover:bg-accent text-sm">Dashboard</Link>
-              <Link to="/profile" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg hover:bg-accent text-sm">Profile</Link>
-              <button onClick={() => { signOut(); setOpen(false); }} className="px-3 py-2 rounded-lg hover:bg-accent text-sm text-left">Sign out</button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg hover:bg-accent text-sm">Sign in</Link>
-              <Link to="/signup" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg hover:bg-accent text-sm">Get started</Link>
-            </>
-          ))}
+          <Link to="/dashboard" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg hover:bg-accent text-sm">Dashboard</Link>
+          <Link to="/profile" onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg hover:bg-accent text-sm">Profile</Link>
         </div>
       )}
     </header>
