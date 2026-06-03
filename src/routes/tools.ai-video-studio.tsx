@@ -1,409 +1,406 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { RequireAuth } from "@/components/RequireAuth";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Sparkles, Download, Film, FileText, AudioLines, Wand2, Play } from "lucide-react";
+import { Loader2, Sparkles, Download, Film, FileText, AudioLines, Wand2, Play, Square } from "lucide-react";
 import { toast } from "sonner";
 import { ToolShell } from "@/components/ToolShell";
 
 export const Route = createFileRoute("/tools/ai-video-studio")({
   head: () => ({
     meta: [
-      { title: "AI Video Studio — Script & Audio to Video | CreatorHub" },
-      { name: "description", content: "Turn any script or audio file into a finished video with AI scenes, voiceover, captions, transitions, and MP4 export." },
+      { title: "AI Video Studio — Free Script & Audio to Video | CreatorHub" },
+      { name: "description", content: "Turn any script or audio into a finished video with auto scenes, captions, voiceover, and MP4 export. 100% free, no API keys." },
     ],
     links: [{ rel: "canonical", href: "https://creatorhubforever.lovable.app/tools/ai-video-studio" }],
   }),
-  component: () => <RequireAuth><Page /></RequireAuth>,
+  component: Page,
 });
 
-type Style = "cinematic" | "youtube" | "reels" | "shorts" | "educational";
-type Mode = "script" | "audio";
-type Quality = "slideshow" | "replicate";
+type Style =
+  | "youtube" | "shorts" | "reels" | "educational"
+  | "cinematic" | "motivational" | "tech" | "business" | "vlog";
+type Mode = "script" | "audio" | "faceless";
 
-type Scene = {
-  narration: string;
-  caption: string;
-  imagePrompt: string;
-  imageUrl?: string;
-  videoUrl?: string;
-  audioUrl?: string;
-  audioDuration?: number;
+type Scene = { caption: string; narration: string; palette: [string, string, string]; icon: string };
+
+const STYLES: Record<Style, { label: string; w: number; h: number; palette: [string, string, string]; font: string }> = {
+  youtube:      { label: "YouTube",     w: 1280, h: 720,  palette: ["#FF0033", "#1a0008", "#ffffff"], font: "system-ui" },
+  shorts:       { label: "Shorts",      w: 720,  h: 1280, palette: ["#FF3B30", "#0b0b0f", "#ffffff"], font: "system-ui" },
+  reels:        { label: "Reels",       w: 720,  h: 1280, palette: ["#E1306C", "#1a0a14", "#ffffff"], font: "system-ui" },
+  educational:  { label: "Educational", w: 1280, h: 720,  palette: ["#2563EB", "#0a1224", "#ffffff"], font: "Georgia, serif" },
+  cinematic:    { label: "Cinematic",   w: 1280, h: 720,  palette: ["#D4A24C", "#0a0908", "#f5e9d6"], font: "Georgia, serif" },
+  motivational: { label: "Motivational",w: 720,  h: 1280, palette: ["#F97316", "#100806", "#ffffff"], font: "system-ui" },
+  tech:         { label: "Tech",        w: 1280, h: 720,  palette: ["#00E5FF", "#04101a", "#e6fbff"], font: "ui-monospace, Menlo, monospace" },
+  business:     { label: "Business",    w: 1280, h: 720,  palette: ["#0EA5E9", "#0b1220", "#f8fafc"], font: "Georgia, serif" },
+  vlog:         { label: "Vlog",        w: 1280, h: 720,  palette: ["#A78BFA", "#120a1f", "#ffffff"], font: "system-ui" },
 };
 
-const STYLES: { id: Style; label: string; aspect: "16:9" | "9:16"; w: number; h: number }[] = [
-  { id: "cinematic", label: "Cinematic", aspect: "16:9", w: 1280, h: 720 },
-  { id: "youtube", label: "YouTube", aspect: "16:9", w: 1280, h: 720 },
-  { id: "educational", label: "Educational", aspect: "16:9", w: 1280, h: 720 },
-  { id: "reels", label: "Reels", aspect: "9:16", w: 720, h: 1280 },
-  { id: "shorts", label: "Shorts", aspect: "9:16", w: 720, h: 1280 },
-];
+const ICONS = ["✦", "✸", "❖", "◆", "✺", "✹", "✷", "✶", "▲", "●", "◼", "✱"];
 
-const VOICES = [
-  { id: "EXAVITQu4vr4xnSDxMaL", label: "Sarah (warm female)" },
-  { id: "JBFqnCBsd6RMkjVDRZzb", label: "George (calm male)" },
-  { id: "nPczCjzI2devNBz1zQrb", label: "Brian (deep male)" },
-  { id: "Xb7hH8MSUJpSbSDYk0k2", label: "Alice (bright female)" },
-  { id: "TX3LPaxmHKxFdv7VOQHJ", label: "Liam (young male)" },
-];
-
-async function audioBlobDuration(blob: Blob): Promise<number> {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(blob);
-    const a = new Audio();
-    a.src = url;
-    a.addEventListener("loadedmetadata", () => {
-      const d = isFinite(a.duration) && a.duration > 0 ? a.duration : 3;
-      URL.revokeObjectURL(url);
-      resolve(d);
-    });
-    a.addEventListener("error", () => { URL.revokeObjectURL(url); resolve(3); });
+function splitIntoScenes(script: string, target = 6): Scene[] {
+  const clean = script.replace(/\s+/g, " ").trim();
+  if (!clean) return [];
+  // Split by sentence terminators, group into target buckets.
+  const sentences = clean.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const n = Math.max(3, Math.min(12, target));
+  const perBucket = Math.max(1, Math.ceil(sentences.length / n));
+  const buckets: string[] = [];
+  for (let i = 0; i < sentences.length; i += perBucket) {
+    buckets.push(sentences.slice(i, i + perBucket).join(" "));
+  }
+  return buckets.slice(0, n).map((narration, i) => {
+    const words = narration.split(/\s+/).filter(Boolean);
+    const caption = words.slice(0, 7).join(" ") + (words.length > 7 ? "…" : "");
+    return {
+      narration,
+      caption: caption || `Scene ${i + 1}`,
+      palette: ["", "", ""] as [string, string, string], // filled at render time from style
+      icon: ICONS[i % ICONS.length],
+    };
   });
+}
+
+function topicToScenes(topic: string, count: number): Scene[] {
+  const t = topic.trim() || "Untitled";
+  const beats = [
+    `Introducing ${t}.`,
+    `Why ${t} matters today.`,
+    `The first key idea about ${t}.`,
+    `A surprising fact about ${t}.`,
+    `How to get started with ${t}.`,
+    `A common mistake people make.`,
+    `The real secret behind ${t}.`,
+    `What experts say about ${t}.`,
+    `A quick action you can take now.`,
+    `The future of ${t}.`,
+    `Final thoughts on ${t}.`,
+    `Follow for more on ${t}.`,
+  ].slice(0, Math.max(3, Math.min(12, count)));
+  return beats.map((narration, i) => ({
+    narration,
+    caption: narration.replace(/[.!?]$/, ""),
+    palette: ["", "", ""] as [string, string, string],
+    icon: ICONS[i % ICONS.length],
+  }));
+}
+
+// Pick a browser voice that matches the requested gender hint where possible.
+function pickVoice(voices: SpeechSynthesisVoice[], hint: string) {
+  if (!voices.length) return null;
+  const en = voices.filter((v) => v.lang?.toLowerCase().startsWith("en"));
+  const pool = en.length ? en : voices;
+  const lower = hint.toLowerCase();
+  const match = pool.find((v) => v.name.toLowerCase().includes(lower));
+  return match || pool[0];
+}
+
+function speak(text: string, voice: SpeechSynthesisVoice | null, rate = 1, pitch = 1): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) { resolve(); return; }
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      if (voice) u.voice = voice;
+      u.rate = rate; u.pitch = pitch;
+      u.onend = () => resolve();
+      u.onerror = () => resolve();
+      window.speechSynthesis.speak(u);
+    } catch { resolve(); }
+  });
+}
+
+// Estimate spoken duration in seconds (browser TTS, ~2.6 wps).
+function estimateDuration(text: string, rate = 1) {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1.6, words / (2.6 * rate));
 }
 
 function Page() {
   const [mode, setMode] = useState<Mode>("script");
-  const [style, setStyle] = useState<Style>("cinematic");
-  const [quality, setQuality] = useState<Quality>("slideshow");
-  const [voiceId, setVoiceId] = useState(VOICES[0].id);
-  const [script, setScript] = useState("In a world where ideas move at the speed of light, creators reshape what's possible. Every voice finds its stage. Every story finds its audience. This is the new era of creation.");
+  const [style, setStyle] = useState<Style>("youtube");
+  const [script, setScript] = useState(
+    "In a world where ideas move at the speed of light, creators reshape what's possible. Every voice finds its stage. Every story finds its audience. This is the new era of creation."
+  );
+  const [topic, setTopic] = useState("AI for creators");
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [sceneCount, setSceneCount] = useState(6);
+  const [voiceHint, setVoiceHint] = useState<"Female" | "Male">("Female");
+  const [muteExport, setMuteExport] = useState(false);
 
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("");
   const [scenes, setScenes] = useState<Scene[]>([]);
-  const [masterAudioUrl, setMasterAudioUrl] = useState<string | null>(null); // for audio mode
   const [exportedUrl, setExportedUrl] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
-  const styleCfg = useMemo(() => STYLES.find((s) => s.id === style)!, [style]);
+  const styleCfg = useMemo(() => STYLES[style], [style]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  const reset = () => {
-    setScenes([]);
-    setMasterAudioUrl(null);
-    setExportedUrl(null);
-    setProgress(0);
-    setProgressLabel("");
-  };
-
-  // === Pipeline: script → scenes ===
-  async function runScriptPipeline() {
-    reset();
-    setBusy(true);
-    try {
-      setProgressLabel("Splitting script into scenes…"); setProgress(5);
-      const sRes = await fetch("/api/video/scenes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ script, style, sceneCount }),
-      });
-      const sData = await sRes.json();
-      if (!sRes.ok) throw new Error(sData?.error || "Scene split failed");
-      const baseScenes: Scene[] = sData.scenes;
-      setScenes(baseScenes);
-
-      const total = baseScenes.length;
-      const updated: Scene[] = [...baseScenes];
-
-      for (let i = 0; i < total; i++) {
-        const scene = updated[i];
-        // Visual
-        setProgressLabel(`Scene ${i + 1}/${total}: generating visual…`);
-        setProgress(10 + (i / total) * 70);
-        if (quality === "replicate") {
-          const vr = await fetch("/api/video", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: scene.imagePrompt }),
-          });
-          const vd = await vr.json();
-          if (!vr.ok) throw new Error(vd?.error || "Replicate failed");
-          scene.videoUrl = vd.url;
-        } else {
-          const ir = await fetch("/api/ai/image", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: scene.imagePrompt }),
-          });
-          const id = await ir.json();
-          if (!ir.ok) throw new Error(id?.error || "Image failed");
-          scene.imageUrl = id.url;
-        }
-
-        // Voiceover (per scene)
-        setProgressLabel(`Scene ${i + 1}/${total}: generating voiceover…`);
-        const ar = await fetch("/api/audio", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: scene.narration, voiceId }),
-        });
-        if (!ar.ok) {
-          const ad = await ar.json().catch(() => ({}));
-          throw new Error(ad?.error || "TTS failed");
-        }
-        const blob = await ar.blob();
-        scene.audioUrl = URL.createObjectURL(blob);
-        scene.audioDuration = await audioBlobDuration(blob);
-
-        updated[i] = { ...scene };
-        setScenes([...updated]);
-      }
-
-      setProgress(100);
-      setProgressLabel("Done — preview below.");
-      toast.success("Video assembled. Press Play to preview.");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Generation failed");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // === Pipeline: audio → scenes ===
-  async function runAudioPipeline() {
-    if (!audioFile) { toast.error("Please upload an audio file first."); return; }
-    reset();
-    setBusy(true);
-    try {
-      // Master audio URL
-      const masterUrl = URL.createObjectURL(audioFile);
-      setMasterAudioUrl(masterUrl);
-
-      setProgressLabel("Transcribing audio…"); setProgress(8);
-      const fd = new FormData();
-      fd.append("file", audioFile);
-      const tr = await fetch("/api/transcribe", { method: "POST", body: fd });
-      const td = await tr.json();
-      if (!tr.ok) throw new Error(td?.error || "Transcription failed");
-      const transcript: string = td.text || "";
-      if (!transcript.trim()) throw new Error("Empty transcription");
-
-      setProgressLabel("Splitting transcript into scenes…"); setProgress(20);
-      const sRes = await fetch("/api/video/scenes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ script: transcript, style, sceneCount }),
-      });
-      const sData = await sRes.json();
-      if (!sRes.ok) throw new Error(sData?.error || "Scene split failed");
-      const baseScenes: Scene[] = sData.scenes;
-      setScenes(baseScenes);
-
-      const total = baseScenes.length;
-      const updated: Scene[] = [...baseScenes];
-      for (let i = 0; i < total; i++) {
-        const scene = updated[i];
-        setProgressLabel(`Scene ${i + 1}/${total}: generating visual…`);
-        setProgress(25 + (i / total) * 70);
-        if (quality === "replicate") {
-          const vr = await fetch("/api/video", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: scene.imagePrompt }),
-          });
-          const vd = await vr.json();
-          if (!vr.ok) throw new Error(vd?.error || "Replicate failed");
-          scene.videoUrl = vd.url;
-        } else {
-          const ir = await fetch("/api/ai/image", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: scene.imagePrompt }),
-          });
-          const id = await ir.json();
-          if (!ir.ok) throw new Error(id?.error || "Image failed");
-          scene.imageUrl = id.url;
-        }
-        updated[i] = { ...scene };
-        setScenes([...updated]);
-      }
-      setProgress(100);
-      setProgressLabel("Done — preview below.");
-      toast.success("Video assembled. Press Play to preview.");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Generation failed");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // === Preview/Export via canvas+MediaRecorder ===
-  // Loaded image cache
-  const imgCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
-  async function loadImage(url: string): Promise<HTMLImageElement> {
-    if (imgCacheRef.current.has(url)) return imgCacheRef.current.get(url)!;
-    return new Promise((resolve, reject) => {
-      const im = new Image();
-      im.crossOrigin = "anonymous";
-      im.onload = () => { imgCacheRef.current.set(url, im); resolve(im); };
-      im.onerror = reject;
-      im.src = url;
-    });
-  }
-
-  function drawFrame(ctx: CanvasRenderingContext2D, img: HTMLImageElement | null, caption: string, t: number, dur: number, w: number, h: number) {
-    // background
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, w, h);
-    if (img) {
-      // Ken Burns: scale 1 -> 1.08 over scene
-      const p = Math.min(1, Math.max(0, t / Math.max(0.001, dur)));
-      const scale = 1.04 + 0.06 * p;
-      const iw = img.width, ih = img.height;
-      const ratio = Math.max(w / iw, h / ih) * scale;
-      const dw = iw * ratio, dh = ih * ratio;
-      const dx = (w - dw) / 2 + (Math.sin(p * Math.PI) - 0.5) * 20;
-      const dy = (h - dh) / 2;
-      ctx.drawImage(img, dx, dy, dw, dh);
-      // fade-in/out
-      const fade = Math.min(1, p / 0.15) * Math.min(1, (1 - p) / 0.15);
-      if (fade < 1) {
-        ctx.fillStyle = `rgba(0,0,0,${1 - fade})`;
-        ctx.fillRect(0, 0, w, h);
-      }
-    }
-    // Caption pill
-    if (caption) {
-      const fontSize = Math.round(h * 0.045);
-      ctx.font = `600 ${fontSize}px system-ui, -apple-system, Segoe UI, sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      const padding = fontSize * 0.7;
-      const textWidth = ctx.measureText(caption).width;
-      const boxW = Math.min(w - 80, textWidth + padding * 2);
-      const boxH = fontSize + padding;
-      const boxX = (w - boxW) / 2;
-      const boxY = h - boxH - h * 0.07;
-      ctx.fillStyle = "rgba(0,0,0,0.55)";
-      const r = boxH / 2;
-      ctx.beginPath();
-      ctx.moveTo(boxX + r, boxY);
-      ctx.arcTo(boxX + boxW, boxY, boxX + boxW, boxY + boxH, r);
-      ctx.arcTo(boxX + boxW, boxY + boxH, boxX, boxY + boxH, r);
-      ctx.arcTo(boxX, boxY + boxH, boxX, boxY, r);
-      ctx.arcTo(boxX, boxY, boxX + boxW, boxY, r);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = "#fff";
-      ctx.fillText(caption, w / 2, boxY + boxH / 2 + 1);
-    }
-  }
-
-  // Live preview (not recording)
   const previewAbortRef = useRef<{ abort: boolean }>({ abort: false });
+
+  // Load voices for SpeechSynthesis
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const load = () => setVoices(window.speechSynthesis.getVoices());
+    load();
+    window.speechSynthesis.onvoiceschanged = load;
+    return () => { window.speechSynthesis.onvoiceschanged = null; };
+  }, []);
+
+  useEffect(() => () => {
+    previewAbortRef.current.abort = true;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+  }, []);
+
+  function reset() {
+    setScenes([]); setExportedUrl(null); setProgress(0); setProgressLabel("");
+    previewAbortRef.current.abort = true;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+  }
+
+  async function generate() {
+    reset();
+    setBusy(true);
+    try {
+      setProgressLabel("Building scenes…"); setProgress(10);
+      let built: Scene[] = [];
+      if (mode === "script") {
+        if (!script.trim()) throw new Error("Please paste a script first.");
+        built = splitIntoScenes(script, sceneCount);
+      } else if (mode === "faceless") {
+        if (!topic.trim()) throw new Error("Please enter a topic first.");
+        built = topicToScenes(topic, sceneCount);
+      } else {
+        if (!audioFile) throw new Error("Please upload an audio file.");
+        // Use audio duration to lay out generic scenes from topic/script as labels.
+        const seed = (script || topic || "Your story").trim();
+        built = splitIntoScenes(seed, sceneCount);
+        if (built.length === 0) built = topicToScenes(seed, sceneCount);
+      }
+      setProgress(80);
+      setScenes(built);
+      setProgress(100);
+      setProgressLabel(`Ready — ${built.length} scenes. Press Play to preview.`);
+      toast.success("Scenes ready.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not build scenes");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // ============== Procedural visual rendering ==============
+  function drawSceneFrame(
+    ctx: CanvasRenderingContext2D,
+    sc: Scene, t: number, dur: number, w: number, h: number, idx: number, total: number,
+  ) {
+    const [accent, bg, fg] = styleCfg.palette;
+    const p = Math.max(0, Math.min(1, t / Math.max(0.001, dur)));
+
+    // Animated gradient background
+    const g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, bg);
+    g.addColorStop(1, mixColor(bg, accent, 0.35));
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+
+    // Drifting accent blobs
+    for (let i = 0; i < 3; i++) {
+      const cx = w * (0.2 + 0.3 * i) + Math.sin((p + i) * Math.PI) * 60;
+      const cy = h * (0.3 + 0.15 * i) + Math.cos((p + i) * Math.PI) * 40;
+      const rr = Math.min(w, h) * (0.25 + 0.05 * i);
+      const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr);
+      rg.addColorStop(0, hexA(accent, 0.28));
+      rg.addColorStop(1, hexA(accent, 0));
+      ctx.fillStyle = rg; ctx.fillRect(0, 0, w, h);
+    }
+
+    // Subtle grid (tech feel) — restrained
+    ctx.strokeStyle = hexA(fg, 0.05);
+    ctx.lineWidth = 1;
+    const gs = 64;
+    for (let x = 0; x < w; x += gs) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+    for (let y = 0; y < h; y += gs) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+
+    // Big decorative glyph (Ken Burns)
+    const scale = 1 + 0.08 * p;
+    ctx.save();
+    ctx.translate(w / 2, h * 0.42);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = hexA(accent, 0.85);
+    ctx.font = `${Math.round(Math.min(w, h) * 0.32)}px ${styleCfg.font}`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(sc.icon, 0, 0);
+    ctx.restore();
+
+    // Scene index pill
+    ctx.fillStyle = hexA(fg, 0.85);
+    ctx.font = `600 ${Math.round(h * 0.025)}px ${styleCfg.font}`;
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.fillText(`${String(idx + 1).padStart(2, "0")} / ${String(total).padStart(2, "0")}`, h * 0.04, h * 0.04);
+
+    // Style label (top right)
+    ctx.textAlign = "right";
+    ctx.fillText(STYLES[style].label.toUpperCase(), w - h * 0.04, h * 0.04);
+
+    // Caption — bottom, large, with fade in/out
+    const fade = Math.min(1, p / 0.12) * Math.min(1, (1 - p) / 0.12);
+    const caption = sc.caption;
+    const fontSize = Math.round(h * 0.06);
+    ctx.font = `700 ${fontSize}px ${styleCfg.font}`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const padding = fontSize * 0.6;
+    const lines = wrapText(ctx, caption, w - h * 0.16);
+    const lineH = fontSize * 1.15;
+    const boxH = lineH * lines.length + padding * 1.2;
+    const boxW = Math.min(w - h * 0.1, Math.max(...lines.map(l => ctx.measureText(l).width)) + padding * 2);
+    const boxX = (w - boxW) / 2;
+    const boxY = h - boxH - h * 0.08;
+
+    ctx.fillStyle = hexA("#000000", 0.55 * fade);
+    roundRect(ctx, boxX, boxY, boxW, boxH, Math.min(24, boxH / 2));
+    ctx.fill();
+
+    ctx.fillStyle = hexA(fg, fade);
+    lines.forEach((ln, i) => {
+      ctx.fillText(ln, w / 2, boxY + padding * 0.6 + lineH * (i + 0.5));
+    });
+
+    // Bottom progress bar across whole video
+    const overall = (idx + p) / Math.max(1, total);
+    ctx.fillStyle = hexA(fg, 0.15);
+    ctx.fillRect(0, h - 6, w, 6);
+    ctx.fillStyle = accent;
+    ctx.fillRect(0, h - 6, w * overall, 6);
+  }
+
+  function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+    const words = text.split(/\s+/);
+    const lines: string[] = [];
+    let cur = "";
+    for (const w of words) {
+      const test = cur ? cur + " " + w : w;
+      if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; }
+      else cur = test;
+    }
+    if (cur) lines.push(cur);
+    return lines.slice(0, 3);
+  }
+
+  function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function hexA(hex: string, alpha: number) {
+    const h = hex.replace("#", "");
+    const r = parseInt(h.substring(0, 2), 16);
+    const g = parseInt(h.substring(2, 4), 16);
+    const b = parseInt(h.substring(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  function mixColor(a: string, b: string, t: number) {
+    const ah = a.replace("#", ""); const bh = b.replace("#", "");
+    const ar = parseInt(ah.substring(0, 2), 16), ag = parseInt(ah.substring(2, 4), 16), ab = parseInt(ah.substring(4, 6), 16);
+    const br = parseInt(bh.substring(0, 2), 16), bg = parseInt(bh.substring(2, 4), 16), bb = parseInt(bh.substring(4, 6), 16);
+    const r = Math.round(ar + (br - ar) * t), g = Math.round(ag + (bg - ag) * t), bl = Math.round(ab + (bb - ab) * t);
+    return `rgb(${r},${g},${bl})`;
+  }
+
   async function playPreview() {
-    if (scenes.length === 0) return;
+    if (scenes.length === 0) { toast.error("Generate scenes first."); return; }
     previewAbortRef.current.abort = true;
     const myToken = { abort: false };
     previewAbortRef.current = myToken;
+
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
-    canvas.width = styleCfg.w;
-    canvas.height = styleCfg.h;
+    canvas.width = styleCfg.w; canvas.height = styleCfg.h;
 
-    // Pre-load images
-    for (const s of scenes) { if (s.imageUrl) { try { await loadImage(s.imageUrl); } catch { /* ignore */ } } }
+    const voice = pickVoice(voices, voiceHint);
 
-    if (mode === "audio" && masterAudioUrl) {
-      // Single master audio playback while looping through scenes by total duration
-      const audio = new Audio(masterAudioUrl);
-      await audio.play().catch(() => {});
-      const total = audio.duration || scenes.length * 4;
-      const per = total / scenes.length;
+    if (mode === "audio" && audioFile) {
+      const audio = new Audio(URL.createObjectURL(audioFile));
+      audio.play().catch(() => {});
       const start = performance.now();
-      const tick = () => {
+      const ready = await new Promise<number>((res) => {
+        audio.addEventListener("loadedmetadata", () => res(audio.duration || scenes.length * 4), { once: true });
+        audio.addEventListener("error", () => res(scenes.length * 4), { once: true });
+      });
+      const total = ready;
+      const per = total / scenes.length;
+      const loop = () => {
         if (myToken.abort) { audio.pause(); return; }
         const elapsed = (performance.now() - start) / 1000;
         if (elapsed >= total) { audio.pause(); return; }
         const idx = Math.min(scenes.length - 1, Math.floor(elapsed / per));
-        const localT = elapsed - idx * per;
-        const sc = scenes[idx];
-        const img = sc.imageUrl ? imgCacheRef.current.get(sc.imageUrl) || null : null;
-        drawFrame(ctx, img, sc.caption, localT, per, canvas.width, canvas.height);
-        requestAnimationFrame(tick);
+        drawSceneFrame(ctx, scenes[idx], elapsed - idx * per, per, canvas.width, canvas.height, idx, scenes.length);
+        requestAnimationFrame(loop);
       };
-      requestAnimationFrame(tick);
-    } else {
-      // Script mode: per-scene audio
-      for (let i = 0; i < scenes.length; i++) {
-        if (myToken.abort) return;
-        const sc = scenes[i];
-        const dur = sc.audioDuration || 3;
-        const img = sc.imageUrl ? imgCacheRef.current.get(sc.imageUrl) || null : null;
-        const audio = sc.audioUrl ? new Audio(sc.audioUrl) : null;
-        if (audio) await audio.play().catch(() => {});
-        const start = performance.now();
-        await new Promise<void>((resolve) => {
-          const tick = () => {
-            if (myToken.abort) { audio?.pause(); resolve(); return; }
-            const t = (performance.now() - start) / 1000;
-            drawFrame(ctx, img, sc.caption, t, dur, canvas.width, canvas.height);
-            if (t >= dur) { resolve(); return; }
-            requestAnimationFrame(tick);
-          };
+      requestAnimationFrame(loop);
+      return;
+    }
+
+    for (let i = 0; i < scenes.length; i++) {
+      if (myToken.abort) return;
+      const sc = scenes[i];
+      const dur = estimateDuration(sc.narration);
+      const start = performance.now();
+      const speakP = speak(sc.narration, voice);
+      await new Promise<void>((resolve) => {
+        const tick = () => {
+          if (myToken.abort) { resolve(); return; }
+          const t = (performance.now() - start) / 1000;
+          drawSceneFrame(ctx, sc, t, dur, canvas.width, canvas.height, i, scenes.length);
+          if (t >= dur) { resolve(); return; }
           requestAnimationFrame(tick);
-        });
-      }
+        };
+        requestAnimationFrame(tick);
+      });
+      // Let the utterance finish if it's still talking (max +1s grace).
+      await Promise.race([speakP, new Promise((r) => setTimeout(r, 1000))]);
     }
   }
 
-  // Export to MP4/WebM via canvas + MediaRecorder
+  function stopPreview() {
+    previewAbortRef.current.abort = true;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+  }
+
   async function exportVideo() {
-    if (scenes.length === 0) return;
+    if (scenes.length === 0) { toast.error("Generate scenes first."); return; }
     previewAbortRef.current.abort = true;
     setExporting(true);
     setExportedUrl(null);
     try {
       const canvas = canvasRef.current!;
       const ctx = canvas.getContext("2d")!;
-      canvas.width = styleCfg.w;
-      canvas.height = styleCfg.h;
+      canvas.width = styleCfg.w; canvas.height = styleCfg.h;
 
-      // Pre-load all images
-      for (const s of scenes) { if (s.imageUrl) { try { await loadImage(s.imageUrl); } catch { /* ignore */ } } }
-
-      // Build combined audio via WebAudio offline? Easier: feed MediaStream from <audio> via captureStream and merge.
       const videoStream = canvas.captureStream(30);
-      const audioCtx = new AudioContext();
-      const dest = audioCtx.createMediaStreamDestination();
 
-      type Seg = { src: string; dur: number; startAt: number };
-      const segs: Seg[] = [];
-      let cursor = 0;
-      if (mode === "audio" && masterAudioUrl) {
-        // Single master track
-        const a = new Audio(masterAudioUrl);
-        await new Promise<void>((res) => { a.addEventListener("loadedmetadata", () => res(), { once: true }); });
-        const total = a.duration || scenes.length * 4;
-        segs.push({ src: masterAudioUrl, dur: total, startAt: 0 });
-        cursor = total;
-      } else {
-        for (const s of scenes) {
-          if (!s.audioUrl) continue;
-          const d = s.audioDuration || 3;
-          segs.push({ src: s.audioUrl, dur: d, startAt: cursor });
-          cursor += d;
-        }
-      }
-      const totalDuration = cursor;
+      // Audio: only the uploaded audio file in audio mode can be embedded
+      // (SpeechSynthesis output isn't capturable). Otherwise export silent.
+      let combinedStream: MediaStream = videoStream;
+      let audioEl: HTMLAudioElement | null = null;
+      let audioCtx: AudioContext | null = null;
 
-      // Wire audio elements into destination
-      const audioEls: HTMLAudioElement[] = segs.map((seg) => {
-        const a = new Audio(seg.src);
-        a.crossOrigin = "anonymous";
-        const src = audioCtx.createMediaElementSource(a);
+      if (mode === "audio" && audioFile && !muteExport) {
+        audioCtx = new AudioContext();
+        const dest = audioCtx.createMediaStreamDestination();
+        audioEl = new Audio(URL.createObjectURL(audioFile));
+        audioEl.crossOrigin = "anonymous";
+        const src = audioCtx.createMediaElementSource(audioEl);
         src.connect(dest);
-        return a;
-      });
+        combinedStream = new MediaStream([
+          ...videoStream.getVideoTracks(),
+          ...dest.stream.getAudioTracks(),
+        ]);
+      }
 
-      const mixed = new MediaStream([
-        ...videoStream.getVideoTracks(),
-        ...dest.stream.getAudioTracks(),
-      ]);
-
-      // Pick best supported mime
       const candidates = [
         "video/mp4;codecs=h264,aac",
         "video/mp4",
@@ -411,61 +408,65 @@ function Page() {
         "video/webm;codecs=vp8,opus",
         "video/webm",
       ];
-      const mime = candidates.find((m) => (window.MediaRecorder?.isTypeSupported?.(m))) || "";
-      const rec = mime ? new MediaRecorder(mixed, { mimeType: mime, videoBitsPerSecond: 4_000_000 })
-                       : new MediaRecorder(mixed, { videoBitsPerSecond: 4_000_000 });
+      const mime = candidates.find((m) => window.MediaRecorder?.isTypeSupported?.(m)) || "";
+      const rec = mime
+        ? new MediaRecorder(combinedStream, { mimeType: mime, videoBitsPerSecond: 4_000_000 })
+        : new MediaRecorder(combinedStream, { videoBitsPerSecond: 4_000_000 });
       const chunks: Blob[] = [];
       rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-      const done = new Promise<Blob>((res) => { rec.onstop = () => res(new Blob(chunks, { type: rec.mimeType || "video/webm" })); });
+      const done = new Promise<Blob>((res) => {
+        rec.onstop = () => res(new Blob(chunks, { type: rec.mimeType || "video/webm" }));
+      });
 
       rec.start(250);
 
-      // Render loop
-      const start = performance.now();
-      // Schedule audio playbacks
-      audioEls.forEach((a, i) => {
-        setTimeout(() => { a.play().catch(() => {}); }, segs[i].startAt * 1000);
-      });
+      // Compute durations per scene
+      let total = 0;
+      const durations: number[] = [];
+      if (mode === "audio" && audioFile) {
+        const a = audioEl || new Audio(URL.createObjectURL(audioFile));
+        await new Promise<void>((res) => {
+          a.addEventListener("loadedmetadata", () => res(), { once: true });
+          a.addEventListener("error", () => res(), { once: true });
+        });
+        total = a.duration && isFinite(a.duration) ? a.duration : scenes.length * 4;
+        const per = total / scenes.length;
+        for (let i = 0; i < scenes.length; i++) durations.push(per);
+        if (audioEl && !muteExport) audioEl.play().catch(() => {});
+      } else {
+        for (const s of scenes) durations.push(estimateDuration(s.narration));
+        total = durations.reduce((a, b) => a + b, 0);
+      }
 
+      const startAll = performance.now();
+      // Cumulative offsets
+      const offsets: number[] = []; let acc = 0;
+      for (const d of durations) { offsets.push(acc); acc += d; }
+      setProgressLabel("Rendering…");
       await new Promise<void>((resolve) => {
         const tick = () => {
-          const elapsed = (performance.now() - start) / 1000;
-          if (elapsed >= totalDuration) { resolve(); return; }
-          if (mode === "audio" && masterAudioUrl) {
-            const per = totalDuration / scenes.length;
-            const idx = Math.min(scenes.length - 1, Math.floor(elapsed / per));
-            const localT = elapsed - idx * per;
-            const sc = scenes[idx];
-            const img = sc.imageUrl ? imgCacheRef.current.get(sc.imageUrl) || null : null;
-            drawFrame(ctx, img, sc.caption, localT, per, canvas.width, canvas.height);
-          } else {
-            // find current scene
-            let acc = 0;
-            let idx = 0;
-            for (let i = 0; i < scenes.length; i++) {
-              const d = scenes[i].audioDuration || 3;
-              if (elapsed < acc + d) { idx = i; break; }
-              acc += d;
-              idx = i;
-            }
-            const sc = scenes[idx];
-            const dur = sc.audioDuration || 3;
-            const localT = elapsed - acc;
-            const img = sc.imageUrl ? imgCacheRef.current.get(sc.imageUrl) || null : null;
-            drawFrame(ctx, img, sc.caption, localT, dur, canvas.width, canvas.height);
+          const elapsed = (performance.now() - startAll) / 1000;
+          setProgress(Math.min(99, Math.round((elapsed / total) * 100)));
+          if (elapsed >= total) { resolve(); return; }
+          let idx = 0;
+          for (let i = 0; i < offsets.length; i++) {
+            if (elapsed >= offsets[i]) idx = i;
           }
+          const localT = elapsed - offsets[idx];
+          drawSceneFrame(ctx, scenes[idx], localT, durations[idx], canvas.width, canvas.height, idx, scenes.length);
           requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);
       });
 
       rec.stop();
-      audioEls.forEach((a) => a.pause());
       const blob = await done;
-      try { await audioCtx.close(); } catch { /* ignore */ }
+      if (audioCtx) audioCtx.close().catch(() => {});
       const url = URL.createObjectURL(blob);
       setExportedUrl(url);
-      toast.success("Video exported. Click Download below.");
+      setProgress(100);
+      setProgressLabel("Render complete.");
+      toast.success("Video ready — download below.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Export failed");
     } finally {
@@ -473,176 +474,159 @@ function Page() {
     }
   }
 
-  useEffect(() => () => { previewAbortRef.current.abort = true; }, []);
-
-  const canGenerate = mode === "script" ? script.trim().length > 5 : !!audioFile;
-  const exportExt = exportedUrl?.includes("mp4") ? "mp4" : "webm"; // best-effort
-  const generate = mode === "script" ? runScriptPipeline : runAudioPipeline;
+  const isVertical = styleCfg.h > styleCfg.w;
 
   return (
     <ToolShell
       eyebrow="Video Studio"
-      title="AI Video Generator"
-      description="Turn a script or audio file into a finished video with AI scenes, voiceover, captions, and one-click export."
+      title="AI Video Studio"
+      description="Turn a script, audio file, or topic into a finished video — captions, voiceover, MP4. 100% free."
     >
-      <div className="grid lg:grid-cols-[1fr_380px] gap-5">
-        {/* PREVIEW */}
-        <div className="glass rounded-2xl p-3 flex flex-col gap-3">
-          <div className={`relative bg-black rounded-xl overflow-hidden mx-auto w-full ${styleCfg.aspect === "9:16" ? "max-w-[360px] aspect-[9/16]" : "aspect-video"}`}>
-            <canvas ref={canvasRef} className="w-full h-full block" />
-            {scenes.length === 0 && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground gap-2">
-                <Film className="size-8" />
-                <span className="text-sm">Your video preview will appear here</span>
-              </div>
+      {/* Mode tabs */}
+      <div className="glass rounded-2xl p-2 inline-flex gap-1 mb-5">
+        {([
+          { id: "script", label: "Script → Video", icon: FileText },
+          { id: "audio", label: "Audio → Video", icon: AudioLines },
+          { id: "faceless", label: "Faceless (Topic)", icon: Wand2 },
+        ] as { id: Mode; label: string; icon: typeof FileText }[]).map(({ id, label, icon: Icon }) => (
+          <button key={id} onClick={() => setMode(id)}
+            className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition ${
+              mode === id ? "bg-gradient-brand text-primary-foreground shadow-glow" : "hover:bg-accent/40"
+            }`}>
+            <Icon className="size-4" /> {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid lg:grid-cols-5 gap-5">
+        {/* Left: input + controls */}
+        <div className="lg:col-span-2 glass rounded-2xl p-5 space-y-4">
+          {mode === "script" && (
+            <label className="block">
+              <div className="text-sm mb-2">Your script</div>
+              <textarea value={script} onChange={(e) => setScript(e.target.value)} rows={10}
+                className="w-full rounded-xl bg-background/40 border border-border p-3 text-sm" />
+            </label>
+          )}
+          {mode === "faceless" && (
+            <label className="block">
+              <div className="text-sm mb-2">Topic</div>
+              <input value={topic} onChange={(e) => setTopic(e.target.value)}
+                placeholder="e.g. AI for creators"
+                className="w-full rounded-xl bg-background/40 border border-border p-3 text-sm" />
+              <p className="text-xs text-muted-foreground mt-2">We'll build {sceneCount} scenes automatically.</p>
+            </label>
+          )}
+          {mode === "audio" && (
+            <label className="block">
+              <div className="text-sm mb-2">Audio file (MP3 / WAV)</div>
+              <input type="file" accept="audio/*"
+                onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)}
+                className="w-full text-sm" />
+              <p className="text-xs text-muted-foreground mt-2">Your audio will be embedded in the exported video.</p>
+              <div className="mt-3 text-sm mb-1">Caption seed (optional)</div>
+              <textarea value={script} onChange={(e) => setScript(e.target.value)} rows={4}
+                placeholder="Paste a rough script or talking points for on-screen captions."
+                className="w-full rounded-xl bg-background/40 border border-border p-3 text-sm" />
+            </label>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <div className="text-xs text-muted-foreground mb-1">Style</div>
+              <select value={style} onChange={(e) => setStyle(e.target.value as Style)}
+                className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm">
+                {Object.entries(STYLES).map(([id, s]) => (
+                  <option key={id} value={id}>{s.label} ({s.w}×{s.h})</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <div className="text-xs text-muted-foreground mb-1">Scenes</div>
+              <input type="number" min={3} max={12} value={sceneCount}
+                onChange={(e) => setSceneCount(Math.min(12, Math.max(3, Number(e.target.value) || 6)))}
+                className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm" />
+            </label>
+            <label className="block">
+              <div className="text-xs text-muted-foreground mb-1">Voice (preview only)</div>
+              <select value={voiceHint} onChange={(e) => setVoiceHint(e.target.value as "Female" | "Male")}
+                className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm">
+                <option>Female</option>
+                <option>Male</option>
+              </select>
+            </label>
+            {mode === "audio" && (
+              <label className="flex items-center gap-2 text-sm mt-5">
+                <input type="checkbox" checked={muteExport} onChange={(e) => setMuteExport(e.target.checked)} />
+                Mute audio in export
+              </label>
             )}
           </div>
 
-          {busy && (
-            <div className="px-1">
-              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                <span>{progressLabel}</span>
-                <span>{Math.round(progress)}%</span>
-              </div>
-              <div className="h-2 bg-accent/40 rounded-full overflow-hidden">
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button onClick={generate} disabled={busy}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-brand px-5 py-2.5 text-primary-foreground text-sm font-medium shadow-glow disabled:opacity-50">
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+              {busy ? "Working…" : "Generate scenes"}
+            </button>
+            <button onClick={playPreview} disabled={scenes.length === 0}
+              className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm hover:bg-accent/40 disabled:opacity-50">
+              <Play className="size-4" /> Preview
+            </button>
+            <button onClick={stopPreview}
+              className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm hover:bg-accent/40">
+              <Square className="size-4" /> Stop
+            </button>
+            <button onClick={exportVideo} disabled={exporting || scenes.length === 0}
+              className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm hover:bg-accent/40 disabled:opacity-50">
+              {exporting ? <Loader2 className="size-4 animate-spin" /> : <Film className="size-4" />}
+              {exporting ? "Rendering…" : "Export MP4"}
+            </button>
+          </div>
+
+          {(busy || exporting || progress > 0) && (
+            <div>
+              <div className="h-2 rounded-full bg-accent/30 overflow-hidden">
                 <div className="h-full bg-gradient-brand transition-all" style={{ width: `${progress}%` }} />
               </div>
+              <div className="mt-1.5 text-xs text-muted-foreground">{progressLabel || `${progress}%`}</div>
             </div>
           )}
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={playPreview}
-              disabled={scenes.length === 0 || busy}
-              className="inline-flex items-center gap-2 rounded-full glass px-4 py-2 text-sm disabled:opacity-50 hover-lift"
-            >
-              <Play className="size-4" /> Play preview
-            </button>
-            <button
-              onClick={exportVideo}
-              disabled={scenes.length === 0 || busy || exporting}
-              className="inline-flex items-center gap-2 rounded-full bg-gradient-brand px-4 py-2 text-sm text-primary-foreground shadow-glow disabled:opacity-50"
-            >
-              {exporting ? <><Loader2 className="size-4 animate-spin" /> Exporting…</> : <><Wand2 className="size-4" /> Export video</>}
-            </button>
-            {exportedUrl && (
-              <a
-                href={exportedUrl}
-                download={`creatorhub-video.${exportExt}`}
-                className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm hover:bg-accent/40"
-              >
-                <Download className="size-4" /> Download .{exportExt}
-              </a>
-            )}
-          </div>
-
-          {scenes.length > 0 && (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pt-1">
-              {scenes.map((s, i) => (
-                <div key={i} className="rounded-lg overflow-hidden border border-border bg-black/40 aspect-video relative">
-                  {s.imageUrl ? (
-                    <img src={s.imageUrl} alt={s.caption} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">…</div>
-                  )}
-                  <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[10px] px-1.5 py-1 truncate">{i + 1}. {s.caption}</div>
-                </div>
-              ))}
-            </div>
+          {exportedUrl && (
+            <a href={exportedUrl} download={`creatorhub-video.${exportedUrl.includes("mp4") ? "mp4" : "webm"}`}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-brand px-5 py-2.5 text-primary-foreground text-sm font-medium shadow-glow">
+              <Download className="size-4" /> Download video
+            </a>
           )}
         </div>
 
-        {/* CONTROLS */}
-        <div className="glass rounded-2xl p-5 flex flex-col gap-4">
-          {/* Mode tabs */}
-          <div className="grid grid-cols-2 gap-1 p-1 rounded-full bg-accent/40">
-            <button onClick={() => setMode("script")} className={`inline-flex items-center justify-center gap-2 rounded-full px-3 py-2 text-sm ${mode === "script" ? "bg-background shadow" : "text-muted-foreground"}`}>
-              <FileText className="size-4" /> Script
-            </button>
-            <button onClick={() => setMode("audio")} className={`inline-flex items-center justify-center gap-2 rounded-full px-3 py-2 text-sm ${mode === "audio" ? "bg-background shadow" : "text-muted-foreground"}`}>
-              <AudioLines className="size-4" /> Audio
-            </button>
+        {/* Right: preview canvas + scene list */}
+        <div className="lg:col-span-3 space-y-4">
+          <div className="glass rounded-2xl p-4">
+            <div className={`mx-auto bg-black rounded-xl overflow-hidden ${isVertical ? "max-w-[320px]" : "w-full"}`}
+              style={{ aspectRatio: `${styleCfg.w} / ${styleCfg.h}` }}>
+              <canvas ref={canvasRef} className="w-full h-full block" />
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground text-center">
+              Preview uses your browser's built-in voice. Exports include video + uploaded audio (script/topic exports are silent — perfect for adding music later).
+            </p>
           </div>
 
-          {mode === "script" ? (
-            <div>
-              <label className="text-xs uppercase tracking-widest text-muted-foreground">Script</label>
-              <textarea
-                value={script}
-                onChange={(e) => setScript(e.target.value)}
-                rows={8}
-                maxLength={8000}
-                className="mt-2 w-full bg-transparent outline-none resize-none leading-relaxed border border-border rounded-xl p-3"
-              />
-            </div>
-          ) : (
-            <div>
-              <label className="text-xs uppercase tracking-widest text-muted-foreground">Audio file (MP3 / WAV, max 25MB)</label>
-              <input
-                type="file"
-                accept="audio/*"
-                onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
-                className="mt-2 w-full text-sm file:mr-3 file:rounded-full file:border-0 file:bg-gradient-brand file:px-4 file:py-2 file:text-primary-foreground file:cursor-pointer"
-              />
-              {audioFile && <div className="mt-2 text-xs text-muted-foreground">{audioFile.name} · {(audioFile.size / 1024 / 1024).toFixed(2)} MB</div>}
+          {scenes.length > 0 && (
+            <div className="glass rounded-2xl p-4">
+              <div className="text-sm font-medium mb-3">Scenes ({scenes.length})</div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {scenes.map((s, i) => (
+                  <div key={i} className="rounded-xl border border-border p-3 text-xs">
+                    <div className="text-muted-foreground mb-1">Scene {i + 1}</div>
+                    <div className="font-medium mb-1 line-clamp-2">{s.caption}</div>
+                    <div className="text-muted-foreground line-clamp-3">{s.narration}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-
-          <div>
-            <label className="text-xs uppercase tracking-widest text-muted-foreground">Style</label>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {STYLES.map((s) => (
-                <button key={s.id} onClick={() => setStyle(s.id)}
-                  className={`rounded-xl border px-3 py-2 text-sm text-left ${style === s.id ? "border-brand bg-accent/40" : "border-border hover:bg-accent/30"}`}>
-                  <div className="font-medium">{s.label}</div>
-                  <div className="text-[11px] text-muted-foreground">{s.aspect}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs uppercase tracking-widest text-muted-foreground">Visual quality</label>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <button onClick={() => setQuality("slideshow")}
-                className={`rounded-xl border px-3 py-2 text-sm text-left ${quality === "slideshow" ? "border-brand bg-accent/40" : "border-border hover:bg-accent/30"}`}>
-                <div className="font-medium">Slideshow</div>
-                <div className="text-[11px] text-muted-foreground">AI images + motion. Fast.</div>
-              </button>
-              <button onClick={() => setQuality("replicate")}
-                className={`rounded-xl border px-3 py-2 text-sm text-left ${quality === "replicate" ? "border-brand bg-accent/40" : "border-border hover:bg-accent/30"}`}>
-                <div className="font-medium">AI video clips</div>
-                <div className="text-[11px] text-muted-foreground">Replicate per scene. Slow.</div>
-              </button>
-            </div>
-          </div>
-
-          {mode === "script" && (
-            <div>
-              <label className="text-xs uppercase tracking-widest text-muted-foreground">Voice</label>
-              <select value={voiceId} onChange={(e) => setVoiceId(e.target.value)}
-                className="mt-2 w-full bg-transparent border border-border rounded-xl px-3 py-2 text-sm">
-                {VOICES.map((v) => <option key={v.id} value={v.id} className="bg-background">{v.label}</option>)}
-              </select>
-            </div>
-          )}
-
-          <div>
-            <label className="text-xs uppercase tracking-widest text-muted-foreground">Scenes: {sceneCount}</label>
-            <input type="range" min={3} max={10} value={sceneCount} onChange={(e) => setSceneCount(Number(e.target.value))} className="w-full mt-2" />
-          </div>
-
-          <button
-            onClick={generate}
-            disabled={busy || !canGenerate}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-brand px-5 py-3 text-primary-foreground font-medium shadow-glow disabled:opacity-50"
-          >
-            {busy ? <><Loader2 className="size-4 animate-spin" /> Generating…</> : <><Sparkles className="size-4" /> Generate Video</>}
-          </button>
-
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Export uses your browser's MediaRecorder. Chromium browsers (Chrome, Edge, Brave) save MP4 natively; Firefox falls back to WebM. Keep the tab visible during export.
-          </p>
         </div>
       </div>
     </ToolShell>
