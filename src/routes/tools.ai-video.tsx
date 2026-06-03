@@ -40,7 +40,12 @@ function Page() {
       if (!data?.url) throw new Error("No video URL returned by the server");
       setUrl(data.url);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Video generation failed");
+      const raw = e instanceof Error ? e.message : "Video generation failed";
+      // Hide infra/key details — point users to the free Studio instead.
+      const friendly = /replicate|token|api[_ ]?key|unauthor/i.test(raw)
+        ? "AI video clips are temporarily unavailable. Try the free AI Video Studio instead."
+        : raw;
+      toast.error(friendly);
     } finally { setLoading(false); }
   };
 
