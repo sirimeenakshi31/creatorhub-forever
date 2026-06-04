@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Sparkles, Download, Film, FileText, AudioLines, Wand2, Play, Square } from "lucide-react";
+import { Loader2, Sparkles, Download, Film, FileText, AudioLines, Wand2, Play, Square, User } from "lucide-react";
 import { toast } from "sonner";
 import { ToolShell } from "@/components/ToolShell";
 
@@ -8,7 +8,7 @@ export const Route = createFileRoute("/tools/ai-video-studio")({
   head: () => ({
     meta: [
       { title: "AI Video Studio — Free Script & Audio to Video | CreatorHub" },
-      { name: "description", content: "Turn any script or audio into a finished video with auto scenes, captions, voiceover, and MP4 export. 100% free, no API keys." },
+      { name: "description", content: "Turn any script or audio into a finished video with AI avatars, auto scenes, captions, voiceover, and MP4 export. 100% free, no API keys." },
     ],
     links: [{ rel: "canonical", href: "https://creatorhubforever.lovable.app/tools/ai-video-studio" }],
   }),
@@ -16,13 +16,17 @@ export const Route = createFileRoute("/tools/ai-video-studio")({
 });
 
 type Style =
-  | "youtube" | "shorts" | "reels" | "educational"
-  | "cinematic" | "motivational" | "tech" | "business" | "vlog";
+  | "youtube" | "shorts" | "reels" | "educational" | "cinematic"
+  | "motivational" | "tech" | "business" | "vlog"
+  | "documentary" | "storytelling";
 type Mode = "script" | "audio" | "faceless";
+type Ratio = "auto" | "16:9" | "9:16" | "1:1";
+type Avatar = "none" | "cartoon" | "doll" | "anime" | "business" | "teacher" | "influencer";
+type Transition = "fade" | "slide" | "zoom" | "kenburns" | "typewriter";
 
-type Scene = { caption: string; narration: string; palette: [string, string, string]; icon: string };
+type Scene = { caption: string; narration: string; icon: string; transition: Transition };
 
-const STYLES: Record<Style, { label: string; w: number; h: number; palette: [string, string, string]; font: string }> = {
+const STYLE_DEFS: Record<Style, { label: string; w: number; h: number; palette: [string, string, string]; font: string }> = {
   youtube:      { label: "YouTube",     w: 1280, h: 720,  palette: ["#FF0033", "#1a0008", "#ffffff"], font: "system-ui" },
   shorts:       { label: "Shorts",      w: 720,  h: 1280, palette: ["#FF3B30", "#0b0b0f", "#ffffff"], font: "system-ui" },
   reels:        { label: "Reels",       w: 720,  h: 1280, palette: ["#E1306C", "#1a0a14", "#ffffff"], font: "system-ui" },
@@ -32,29 +36,38 @@ const STYLES: Record<Style, { label: string; w: number; h: number; palette: [str
   tech:         { label: "Tech",        w: 1280, h: 720,  palette: ["#00E5FF", "#04101a", "#e6fbff"], font: "ui-monospace, Menlo, monospace" },
   business:     { label: "Business",    w: 1280, h: 720,  palette: ["#0EA5E9", "#0b1220", "#f8fafc"], font: "Georgia, serif" },
   vlog:         { label: "Vlog",        w: 1280, h: 720,  palette: ["#A78BFA", "#120a1f", "#ffffff"], font: "system-ui" },
+  documentary:  { label: "Documentary", w: 1280, h: 720,  palette: ["#C7A36B", "#0d0c0a", "#f1e6cf"], font: "Georgia, serif" },
+  storytelling: { label: "Storytelling",w: 1280, h: 720,  palette: ["#F472B6", "#160a14", "#fff1f7"], font: "Georgia, serif" },
 };
 
+const AVATAR_PRESETS: Record<Exclude<Avatar, "none">, { label: string; skin: string; hair: string; outfit: string; accent: string }> = {
+  cartoon:    { label: "Cartoon",     skin: "#f4c79b", hair: "#3a2a1f", outfit: "#22c55e", accent: "#fde047" },
+  doll:       { label: "3D Doll",     skin: "#ffd8b8", hair: "#a855f7", outfit: "#ec4899", accent: "#22d3ee" },
+  anime:      { label: "Anime",       skin: "#fde6cf", hair: "#1e293b", outfit: "#3b82f6", accent: "#ef4444" },
+  business:   { label: "Presenter",   skin: "#e3b48a", hair: "#1a1a1a", outfit: "#0f172a", accent: "#0EA5E9" },
+  teacher:    { label: "Teacher",     skin: "#f1c3a0", hair: "#6b3a1f", outfit: "#1e40af", accent: "#fbbf24" },
+  influencer: { label: "Influencer",  skin: "#f5cba3", hair: "#fbbf24", outfit: "#ec4899", accent: "#a855f7" },
+};
+
+const TRANSITIONS: Transition[] = ["fade", "slide", "zoom", "kenburns", "typewriter"];
 const ICONS = ["✦", "✸", "❖", "◆", "✺", "✹", "✷", "✶", "▲", "●", "◼", "✱"];
 
 function splitIntoScenes(script: string, target = 6): Scene[] {
   const clean = script.replace(/\s+/g, " ").trim();
   if (!clean) return [];
-  // Split by sentence terminators, group into target buckets.
   const sentences = clean.split(/(?<=[.!?])\s+/).filter(Boolean);
   const n = Math.max(3, Math.min(12, target));
   const perBucket = Math.max(1, Math.ceil(sentences.length / n));
   const buckets: string[] = [];
-  for (let i = 0; i < sentences.length; i += perBucket) {
-    buckets.push(sentences.slice(i, i + perBucket).join(" "));
-  }
+  for (let i = 0; i < sentences.length; i += perBucket) buckets.push(sentences.slice(i, i + perBucket).join(" "));
   return buckets.slice(0, n).map((narration, i) => {
     const words = narration.split(/\s+/).filter(Boolean);
     const caption = words.slice(0, 7).join(" ") + (words.length > 7 ? "…" : "");
     return {
       narration,
       caption: caption || `Scene ${i + 1}`,
-      palette: ["", "", ""] as [string, string, string], // filled at render time from style
       icon: ICONS[i % ICONS.length],
+      transition: TRANSITIONS[i % TRANSITIONS.length],
     };
   });
 }
@@ -62,35 +75,24 @@ function splitIntoScenes(script: string, target = 6): Scene[] {
 function topicToScenes(topic: string, count: number): Scene[] {
   const t = topic.trim() || "Untitled";
   const beats = [
-    `Introducing ${t}.`,
-    `Why ${t} matters today.`,
-    `The first key idea about ${t}.`,
-    `A surprising fact about ${t}.`,
-    `How to get started with ${t}.`,
-    `A common mistake people make.`,
-    `The real secret behind ${t}.`,
-    `What experts say about ${t}.`,
-    `A quick action you can take now.`,
-    `The future of ${t}.`,
-    `Final thoughts on ${t}.`,
-    `Follow for more on ${t}.`,
+    `Introducing ${t}.`, `Why ${t} matters today.`, `The first key idea about ${t}.`,
+    `A surprising fact about ${t}.`, `How to get started with ${t}.`, `A common mistake people make.`,
+    `The real secret behind ${t}.`, `What experts say about ${t}.`, `A quick action you can take now.`,
+    `The future of ${t}.`, `Final thoughts on ${t}.`, `Follow for more on ${t}.`,
   ].slice(0, Math.max(3, Math.min(12, count)));
   return beats.map((narration, i) => ({
-    narration,
-    caption: narration.replace(/[.!?]$/, ""),
-    palette: ["", "", ""] as [string, string, string],
+    narration, caption: narration.replace(/[.!?]$/, ""),
     icon: ICONS[i % ICONS.length],
+    transition: TRANSITIONS[i % TRANSITIONS.length],
   }));
 }
 
-// Pick a browser voice that matches the requested gender hint where possible.
 function pickVoice(voices: SpeechSynthesisVoice[], hint: string) {
   if (!voices.length) return null;
   const en = voices.filter((v) => v.lang?.toLowerCase().startsWith("en"));
   const pool = en.length ? en : voices;
   const lower = hint.toLowerCase();
-  const match = pool.find((v) => v.name.toLowerCase().includes(lower));
-  return match || pool[0];
+  return pool.find((v) => v.name.toLowerCase().includes(lower)) || pool[0];
 }
 
 function speak(text: string, voice: SpeechSynthesisVoice | null, rate = 1, pitch = 1): Promise<void> {
@@ -107,15 +109,156 @@ function speak(text: string, voice: SpeechSynthesisVoice | null, rate = 1, pitch
   });
 }
 
-// Estimate spoken duration in seconds (browser TTS, ~2.6 wps).
 function estimateDuration(text: string, rate = 1) {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
-  return Math.max(1.6, words / (2.6 * rate));
+  return Math.max(2.0, words / (2.6 * rate));
+}
+
+function hexA(hex: string, alpha: number) {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+function mixColor(a: string, b: string, t: number) {
+  const ah = a.replace("#", ""), bh = b.replace("#", "");
+  const ar = parseInt(ah.substring(0, 2), 16), ag = parseInt(ah.substring(2, 4), 16), ab = parseInt(ah.substring(4, 6), 16);
+  const br = parseInt(bh.substring(0, 2), 16), bgg = parseInt(bh.substring(2, 4), 16), bb = parseInt(bh.substring(4, 6), 16);
+  const r = Math.round(ar + (br - ar) * t), g = Math.round(ag + (bgg - ag) * t), bl = Math.round(ab + (bb - ab) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let cur = "";
+  for (const w of words) {
+    const test = cur ? cur + " " + w : w;
+    if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; }
+    else cur = test;
+  }
+  if (cur) lines.push(cur);
+  return lines.slice(0, 3);
+}
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// ============== Avatar drawing ==============
+function drawAvatar(
+  ctx: CanvasRenderingContext2D,
+  preset: typeof AVATAR_PRESETS[keyof typeof AVATAR_PRESETS],
+  cx: number, cy: number, size: number, mouthOpen: number, t: number,
+) {
+  // gentle sway + blink
+  const sway = Math.sin(t * 1.2) * size * 0.015;
+  const blink = (Math.sin(t * 0.9) > 0.97) ? 0.1 : 1;
+
+  ctx.save();
+  ctx.translate(cx + sway, cy);
+
+  // body / outfit
+  ctx.fillStyle = preset.outfit;
+  roundRect(ctx, -size * 0.55, size * 0.35, size * 1.1, size * 0.95, size * 0.18);
+  ctx.fill();
+  // collar accent
+  ctx.fillStyle = preset.accent;
+  ctx.beginPath();
+  ctx.moveTo(-size * 0.18, size * 0.35);
+  ctx.lineTo(0, size * 0.55);
+  ctx.lineTo(size * 0.18, size * 0.35);
+  ctx.closePath();
+  ctx.fill();
+
+  // neck
+  ctx.fillStyle = preset.skin;
+  ctx.fillRect(-size * 0.12, size * 0.2, size * 0.24, size * 0.2);
+
+  // head
+  ctx.fillStyle = preset.skin;
+  ctx.beginPath();
+  ctx.ellipse(0, -size * 0.05, size * 0.42, size * 0.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // hair (top)
+  ctx.fillStyle = preset.hair;
+  ctx.beginPath();
+  ctx.ellipse(0, -size * 0.32, size * 0.46, size * 0.32, 0, Math.PI, Math.PI * 2);
+  ctx.fill();
+  // hair sides
+  ctx.beginPath();
+  ctx.ellipse(-size * 0.4, -size * 0.05, size * 0.1, size * 0.32, 0, 0, Math.PI * 2);
+  ctx.ellipse(size * 0.4, -size * 0.05, size * 0.1, size * 0.32, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // eyes
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.ellipse(-size * 0.15, -size * 0.05, size * 0.07, size * 0.09 * blink, 0, 0, Math.PI * 2);
+  ctx.ellipse(size * 0.15, -size * 0.05, size * 0.07, size * 0.09 * blink, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#1a1a1a";
+  ctx.beginPath();
+  ctx.ellipse(-size * 0.15, -size * 0.04, size * 0.035, size * 0.045 * blink, 0, 0, Math.PI * 2);
+  ctx.ellipse(size * 0.15, -size * 0.04, size * 0.035, size * 0.045 * blink, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // brows
+  ctx.strokeStyle = preset.hair; ctx.lineWidth = size * 0.025; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-size * 0.22, -size * 0.16); ctx.lineTo(-size * 0.08, -size * 0.18);
+  ctx.moveTo(size * 0.08, -size * 0.18); ctx.lineTo(size * 0.22, -size * 0.16);
+  ctx.stroke();
+
+  // cheeks (blush)
+  ctx.fillStyle = hexA("#ff7a90", 0.35);
+  ctx.beginPath();
+  ctx.ellipse(-size * 0.22, size * 0.08, size * 0.06, size * 0.04, 0, 0, Math.PI * 2);
+  ctx.ellipse(size * 0.22, size * 0.08, size * 0.06, size * 0.04, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // mouth (lipsync)
+  const mw = size * 0.18;
+  const mh = Math.max(size * 0.015, mouthOpen * size * 0.13);
+  ctx.fillStyle = "#3a1a1a";
+  ctx.beginPath();
+  ctx.ellipse(0, size * 0.12, mw, mh, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // teeth
+  if (mouthOpen > 0.15) {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(-mw * 0.7, size * 0.12 - mh * 0.4, mw * 1.4, mh * 0.35);
+  }
+
+  ctx.restore();
+}
+
+function drawParticles(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, accent: string) {
+  for (let i = 0; i < 18; i++) {
+    const seed = i * 7.3;
+    const x = ((Math.sin(t * 0.3 + seed) * 0.5 + 0.5) * w);
+    const y = ((t * (20 + i * 4) + seed * 100) % h);
+    const r = 1.5 + (i % 4);
+    ctx.fillStyle = hexA(accent, 0.18 + (i % 3) * 0.05);
+    ctx.beginPath();
+    ctx.arc(x, h - y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function Page() {
   const [mode, setMode] = useState<Mode>("script");
   const [style, setStyle] = useState<Style>("youtube");
+  const [ratio, setRatio] = useState<Ratio>("auto");
+  const [avatar, setAvatar] = useState<Avatar>("none");
   const [script, setScript] = useState(
     "In a world where ideas move at the speed of light, creators reshape what's possible. Every voice finds its stage. Every story finds its audience. This is the new era of creation."
   );
@@ -133,11 +276,17 @@ function Page() {
   const [exportedUrl, setExportedUrl] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
-  const styleCfg = useMemo(() => STYLES[style], [style]);
+  const baseCfg = useMemo(() => STYLE_DEFS[style], [style]);
+  const styleCfg = useMemo(() => {
+    if (ratio === "auto") return baseCfg;
+    if (ratio === "9:16") return { ...baseCfg, w: 720, h: 1280 };
+    if (ratio === "1:1") return { ...baseCfg, w: 1080, h: 1080 };
+    return { ...baseCfg, w: 1280, h: 720 };
+  }, [baseCfg, ratio]);
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewAbortRef = useRef<{ abort: boolean }>({ abort: false });
 
-  // Load voices for SpeechSynthesis
   useEffect(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const load = () => setVoices(window.speechSynthesis.getVoices());
@@ -171,14 +320,12 @@ function Page() {
         built = topicToScenes(topic, sceneCount);
       } else {
         if (!audioFile) throw new Error("Please upload an audio file.");
-        // Use audio duration to lay out generic scenes from topic/script as labels.
         const seed = (script || topic || "Your story").trim();
         built = splitIntoScenes(seed, sceneCount);
         if (built.length === 0) built = topicToScenes(seed, sceneCount);
       }
-      setProgress(80);
-      setScenes(built);
       setProgress(100);
+      setScenes(built);
       setProgressLabel(`Ready — ${built.length} scenes. Press Play to preview.`);
       toast.success("Scenes ready.");
     } catch (e) {
@@ -192,14 +339,15 @@ function Page() {
   function drawSceneFrame(
     ctx: CanvasRenderingContext2D,
     sc: Scene, t: number, dur: number, w: number, h: number, idx: number, total: number,
+    mouthOpen: number,
   ) {
     const [accent, bg, fg] = styleCfg.palette;
     const p = Math.max(0, Math.min(1, t / Math.max(0.001, dur)));
 
-    // Animated gradient background
+    // Animated gradient background with hue drift
     const g = ctx.createLinearGradient(0, 0, w, h);
     g.addColorStop(0, bg);
-    g.addColorStop(1, mixColor(bg, accent, 0.35));
+    g.addColorStop(1, mixColor(bg, accent, 0.35 + Math.sin(t * 0.5) * 0.08));
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
 
     // Drifting accent blobs
@@ -213,101 +361,116 @@ function Page() {
       ctx.fillStyle = rg; ctx.fillRect(0, 0, w, h);
     }
 
-    // Subtle grid (tech feel) — restrained
-    ctx.strokeStyle = hexA(fg, 0.05);
-    ctx.lineWidth = 1;
+    // Particle layer
+    drawParticles(ctx, w, h, t + idx * 1.7, accent);
+
+    // Subtle grid
+    ctx.strokeStyle = hexA(fg, 0.05); ctx.lineWidth = 1;
     const gs = 64;
     for (let x = 0; x < w; x += gs) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
     for (let y = 0; y < h; y += gs) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
 
-    // Big decorative glyph (Ken Burns)
-    const scale = 1 + 0.08 * p;
-    ctx.save();
-    ctx.translate(w / 2, h * 0.42);
-    ctx.scale(scale, scale);
-    ctx.fillStyle = hexA(accent, 0.85);
-    ctx.font = `${Math.round(Math.min(w, h) * 0.32)}px ${styleCfg.font}`;
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(sc.icon, 0, 0);
-    ctx.restore();
+    // ============ Per-scene transition ============
+    // Enter (0..0.18), Exit (0.82..1)
+    const enter = Math.min(1, p / 0.18);
+    const exit = Math.min(1, (1 - p) / 0.18);
+    const trans = sc.transition;
 
-    // Scene index pill
+    let glyphX = w / 2;
+    let glyphY = h * (avatar !== "none" ? 0.32 : 0.42);
+    let glyphScale = 1;
+    let glyphAlpha = 1;
+
+    if (trans === "fade") {
+      glyphAlpha = enter * exit;
+    } else if (trans === "slide") {
+      glyphX = w / 2 + (1 - enter) * w * 0.4 - (1 - exit) * w * 0.4;
+      glyphAlpha = enter * exit;
+    } else if (trans === "zoom") {
+      glyphScale = 0.6 + enter * 0.4 + (1 - exit) * 0.2;
+      glyphAlpha = enter * exit;
+    } else if (trans === "kenburns") {
+      glyphScale = 1 + 0.15 * p;
+      glyphX = w / 2 + Math.sin(p * Math.PI) * w * 0.04;
+      glyphAlpha = enter * exit;
+    } else if (trans === "typewriter") {
+      glyphScale = 1; glyphAlpha = enter * exit;
+    }
+
+    // Avatar (if enabled)
+    if (avatar !== "none") {
+      const preset = AVATAR_PRESETS[avatar];
+      const size = Math.min(w, h) * 0.32;
+      drawAvatar(ctx, preset, w / 2, h * 0.48, size, mouthOpen, t);
+    } else {
+      // Big decorative glyph
+      ctx.save();
+      ctx.globalAlpha = glyphAlpha;
+      ctx.translate(glyphX, glyphY);
+      ctx.scale(glyphScale, glyphScale);
+      ctx.fillStyle = hexA(accent, 0.85);
+      ctx.font = `${Math.round(Math.min(w, h) * 0.32)}px ${styleCfg.font}`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(sc.icon, 0, 0);
+      ctx.restore();
+    }
+
+    // Scene index pill + style label
+    ctx.globalAlpha = 1;
     ctx.fillStyle = hexA(fg, 0.85);
     ctx.font = `600 ${Math.round(h * 0.025)}px ${styleCfg.font}`;
     ctx.textAlign = "left"; ctx.textBaseline = "top";
     ctx.fillText(`${String(idx + 1).padStart(2, "0")} / ${String(total).padStart(2, "0")}`, h * 0.04, h * 0.04);
-
-    // Style label (top right)
     ctx.textAlign = "right";
-    ctx.fillText(STYLES[style].label.toUpperCase(), w - h * 0.04, h * 0.04);
+    ctx.fillText(STYLE_DEFS[style].label.toUpperCase(), w - h * 0.04, h * 0.04);
 
-    // Caption — bottom, large, with fade in/out
-    const fade = Math.min(1, p / 0.12) * Math.min(1, (1 - p) / 0.12);
-    const caption = sc.caption;
-    const fontSize = Math.round(h * 0.06);
+    // ============ Caption ============
+    const fontSize = Math.round(h * 0.055);
     ctx.font = `700 ${fontSize}px ${styleCfg.font}`;
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
+
+    let captionText = sc.caption;
+    if (trans === "typewriter") {
+      const chars = Math.floor(captionText.length * Math.min(1, p / 0.7));
+      captionText = captionText.slice(0, chars);
+    }
+
     const padding = fontSize * 0.6;
-    const lines = wrapText(ctx, caption, w - h * 0.16);
+    const lines = wrapText(ctx, captionText || " ", w - h * 0.16);
     const lineH = fontSize * 1.15;
     const boxH = lineH * lines.length + padding * 1.2;
-    const boxW = Math.min(w - h * 0.1, Math.max(...lines.map(l => ctx.measureText(l).width)) + padding * 2);
-    const boxX = (w - boxW) / 2;
-    const boxY = h - boxH - h * 0.08;
+    const measured = Math.max(...lines.map(l => ctx.measureText(l).width), 1);
+    const boxW = Math.min(w - h * 0.1, measured + padding * 2);
 
-    ctx.fillStyle = hexA("#000000", 0.55 * fade);
+    let boxX = (w - boxW) / 2;
+    let boxY = h - boxH - h * 0.08;
+    let captionAlpha = enter * exit;
+    if (trans === "slide") boxY += (1 - enter) * h * 0.1;
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = hexA("#000000", 0.55 * captionAlpha);
     roundRect(ctx, boxX, boxY, boxW, boxH, Math.min(24, boxH / 2));
     ctx.fill();
 
-    ctx.fillStyle = hexA(fg, fade);
+    ctx.fillStyle = hexA(fg, captionAlpha);
     lines.forEach((ln, i) => {
       ctx.fillText(ln, w / 2, boxY + padding * 0.6 + lineH * (i + 0.5));
     });
 
-    // Bottom progress bar across whole video
+    // Bottom progress bar
     const overall = (idx + p) / Math.max(1, total);
     ctx.fillStyle = hexA(fg, 0.15);
     ctx.fillRect(0, h - 6, w, 6);
     ctx.fillStyle = accent;
     ctx.fillRect(0, h - 6, w * overall, 6);
+
+    ctx.globalAlpha = 1;
   }
 
-  function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
-    const words = text.split(/\s+/);
-    const lines: string[] = [];
-    let cur = "";
-    for (const w of words) {
-      const test = cur ? cur + " " + w : w;
-      if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; }
-      else cur = test;
-    }
-    if (cur) lines.push(cur);
-    return lines.slice(0, 3);
-  }
-
-  function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-  }
-
-  function hexA(hex: string, alpha: number) {
-    const h = hex.replace("#", "");
-    const r = parseInt(h.substring(0, 2), 16);
-    const g = parseInt(h.substring(2, 4), 16);
-    const b = parseInt(h.substring(4, 6), 16);
-    return `rgba(${r},${g},${b},${alpha})`;
-  }
-  function mixColor(a: string, b: string, t: number) {
-    const ah = a.replace("#", ""); const bh = b.replace("#", "");
-    const ar = parseInt(ah.substring(0, 2), 16), ag = parseInt(ah.substring(2, 4), 16), ab = parseInt(ah.substring(4, 6), 16);
-    const br = parseInt(bh.substring(0, 2), 16), bg = parseInt(bh.substring(2, 4), 16), bb = parseInt(bh.substring(4, 6), 16);
-    const r = Math.round(ar + (br - ar) * t), g = Math.round(ag + (bg - ag) * t), bl = Math.round(ab + (bb - ab) * t);
-    return `rgb(${r},${g},${bl})`;
+  // Simulate lipsync openness from time (since browser TTS isn't capturable)
+  function lipSync(t: number, speaking: boolean) {
+    if (!speaking) return 0;
+    return Math.max(0, Math.sin(t * 9) * 0.5 + 0.5) * (0.4 + Math.sin(t * 3) * 0.3);
   }
 
   async function playPreview() {
@@ -337,7 +500,7 @@ function Page() {
         const elapsed = (performance.now() - start) / 1000;
         if (elapsed >= total) { audio.pause(); return; }
         const idx = Math.min(scenes.length - 1, Math.floor(elapsed / per));
-        drawSceneFrame(ctx, scenes[idx], elapsed - idx * per, per, canvas.width, canvas.height, idx, scenes.length);
+        drawSceneFrame(ctx, scenes[idx], elapsed - idx * per, per, canvas.width, canvas.height, idx, scenes.length, lipSync(elapsed, true));
         requestAnimationFrame(loop);
       };
       requestAnimationFrame(loop);
@@ -354,13 +517,12 @@ function Page() {
         const tick = () => {
           if (myToken.abort) { resolve(); return; }
           const t = (performance.now() - start) / 1000;
-          drawSceneFrame(ctx, sc, t, dur, canvas.width, canvas.height, i, scenes.length);
+          drawSceneFrame(ctx, sc, t, dur, canvas.width, canvas.height, i, scenes.length, lipSync(t, true));
           if (t >= dur) { resolve(); return; }
           requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);
       });
-      // Let the utterance finish if it's still talking (max +1s grace).
       await Promise.race([speakP, new Promise((r) => setTimeout(r, 1000))]);
     }
   }
@@ -381,9 +543,6 @@ function Page() {
       canvas.width = styleCfg.w; canvas.height = styleCfg.h;
 
       const videoStream = canvas.captureStream(30);
-
-      // Audio: only the uploaded audio file in audio mode can be embedded
-      // (SpeechSynthesis output isn't capturable). Otherwise export silent.
       let combinedStream: MediaStream = videoStream;
       let audioEl: HTMLAudioElement | null = null;
       let audioCtx: AudioContext | null = null;
@@ -402,11 +561,8 @@ function Page() {
       }
 
       const candidates = [
-        "video/mp4;codecs=h264,aac",
-        "video/mp4",
-        "video/webm;codecs=vp9,opus",
-        "video/webm;codecs=vp8,opus",
-        "video/webm",
+        "video/mp4;codecs=h264,aac", "video/mp4",
+        "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm",
       ];
       const mime = candidates.find((m) => window.MediaRecorder?.isTypeSupported?.(m)) || "";
       const rec = mime
@@ -420,7 +576,6 @@ function Page() {
 
       rec.start(250);
 
-      // Compute durations per scene
       let total = 0;
       const durations: number[] = [];
       if (mode === "audio" && audioFile) {
@@ -439,7 +594,6 @@ function Page() {
       }
 
       const startAll = performance.now();
-      // Cumulative offsets
       const offsets: number[] = []; let acc = 0;
       for (const d of durations) { offsets.push(acc); acc += d; }
       setProgressLabel("Rendering…");
@@ -449,11 +603,9 @@ function Page() {
           setProgress(Math.min(99, Math.round((elapsed / total) * 100)));
           if (elapsed >= total) { resolve(); return; }
           let idx = 0;
-          for (let i = 0; i < offsets.length; i++) {
-            if (elapsed >= offsets[i]) idx = i;
-          }
+          for (let i = 0; i < offsets.length; i++) if (elapsed >= offsets[i]) idx = i;
           const localT = elapsed - offsets[idx];
-          drawSceneFrame(ctx, scenes[idx], localT, durations[idx], canvas.width, canvas.height, idx, scenes.length);
+          drawSceneFrame(ctx, scenes[idx], localT, durations[idx], canvas.width, canvas.height, idx, scenes.length, lipSync(elapsed, true));
           requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);
@@ -480,7 +632,7 @@ function Page() {
     <ToolShell
       eyebrow="Video Studio"
       title="AI Video Studio"
-      description="Turn a script, audio file, or topic into a finished video — captions, voiceover, MP4. 100% free."
+      description="Turn a script, audio file, or topic into a finished video — with AI characters, captions, voiceover, and MP4 export. 100% free."
     >
       {/* Mode tabs */}
       <div className="glass rounded-2xl p-2 inline-flex gap-1 mb-5">
@@ -499,7 +651,6 @@ function Page() {
       </div>
 
       <div className="grid lg:grid-cols-5 gap-5">
-        {/* Left: input + controls */}
         <div className="lg:col-span-2 glass rounded-2xl p-5 space-y-4">
           {mode === "script" && (
             <label className="block">
@@ -536,10 +687,31 @@ function Page() {
               <div className="text-xs text-muted-foreground mb-1">Style</div>
               <select value={style} onChange={(e) => setStyle(e.target.value as Style)}
                 className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm">
-                {Object.entries(STYLES).map(([id, s]) => (
-                  <option key={id} value={id}>{s.label} ({s.w}×{s.h})</option>
+                {Object.entries(STYLE_DEFS).map(([id, s]) => (
+                  <option key={id} value={id}>{s.label}</option>
                 ))}
               </select>
+            </label>
+            <label className="block">
+              <div className="text-xs text-muted-foreground mb-1">Aspect ratio</div>
+              <select value={ratio} onChange={(e) => setRatio(e.target.value as Ratio)}
+                className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm">
+                <option value="auto">Auto (from style)</option>
+                <option value="16:9">Horizontal 16:9</option>
+                <option value="9:16">Vertical 9:16</option>
+                <option value="1:1">Square 1:1</option>
+              </select>
+            </label>
+            <label className="block col-span-2">
+              <div className="text-xs text-muted-foreground mb-1 inline-flex items-center gap-1.5"><User className="size-3" /> AI Character</div>
+              <select value={avatar} onChange={(e) => setAvatar(e.target.value as Avatar)}
+                className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm">
+                <option value="none">None (icon visuals)</option>
+                {Object.entries(AVATAR_PRESETS).map(([id, p]) => (
+                  <option key={id} value={id}>{p.label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">Animated presenter with lip-sync, blink, and gestures.</p>
             </label>
             <label className="block">
               <div className="text-xs text-muted-foreground mb-1">Scenes</div>
@@ -548,7 +720,7 @@ function Page() {
                 className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm" />
             </label>
             <label className="block">
-              <div className="text-xs text-muted-foreground mb-1">Voice (preview only)</div>
+              <div className="text-xs text-muted-foreground mb-1">Voice (preview)</div>
               <select value={voiceHint} onChange={(e) => setVoiceHint(e.target.value as "Female" | "Male")}
                 className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm">
                 <option>Female</option>
@@ -556,7 +728,7 @@ function Page() {
               </select>
             </label>
             {mode === "audio" && (
-              <label className="flex items-center gap-2 text-sm mt-5">
+              <label className="flex items-center gap-2 text-sm col-span-2">
                 <input type="checkbox" checked={muteExport} onChange={(e) => setMuteExport(e.target.checked)} />
                 Mute audio in export
               </label>
@@ -601,7 +773,6 @@ function Page() {
           )}
         </div>
 
-        {/* Right: preview canvas + scene list */}
         <div className="lg:col-span-3 space-y-4">
           <div className="glass rounded-2xl p-4">
             <div className={`mx-auto bg-black rounded-xl overflow-hidden ${isVertical ? "max-w-[320px]" : "w-full"}`}
@@ -619,7 +790,10 @@ function Page() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {scenes.map((s, i) => (
                   <div key={i} className="rounded-xl border border-border p-3 text-xs">
-                    <div className="text-muted-foreground mb-1">Scene {i + 1}</div>
+                    <div className="text-muted-foreground mb-1 flex justify-between">
+                      <span>Scene {i + 1}</span>
+                      <span className="uppercase tracking-wider">{s.transition}</span>
+                    </div>
                     <div className="font-medium mb-1 line-clamp-2">{s.caption}</div>
                     <div className="text-muted-foreground line-clamp-3">{s.narration}</div>
                   </div>
