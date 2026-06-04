@@ -1,89 +1,20 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { RequireAuth } from "@/components/RequireAuth";
-import { useState } from "react";
-import { Loader2, Sparkles, Download, Film } from "lucide-react";
-import { toast } from "sonner";
-import { ToolShell } from "@/components/ToolShell";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/tools/ai-video")({
+  beforeLoad: () => {
+    throw redirect({ to: "/tools/ai-video-studio" });
+  },
   head: () => ({
     meta: [
-      { title: "AI Video Generator — Free | CreatorHub" },
-      { name: "description", content: "Generate short cinematic AI videos from a text prompt. Free, no credits." },
-      { property: "og:title", content: "AI Video Generator — Free | CreatorHub" },
-      { property: "og:description", content: "Generate short cinematic AI videos from a text prompt." },
-      { property: "og:url", content: "https://creatorhubforever.lovable.app/tools/ai-video" },
-      { name: "twitter:title", content: "AI Video Generator — Free | CreatorHub" },
-      { name: "twitter:description", content: "Generate short cinematic AI videos from a text prompt." },
+      { title: "AI Video Studio — Free | CreatorHub" },
+      { name: "description", content: "Create free MP4 videos from scripts, audio, or images. Browser voiceover, auto captions, no API keys." },
+      { property: "og:title", content: "AI Video Studio — Free | CreatorHub" },
+      { property: "og:description", content: "Create free MP4 videos from scripts, audio, or images." },
+      { property: "og:url", content: "https://creatorhubforever.lovable.app/tools/ai-video-studio" },
+      { name: "twitter:title", content: "AI Video Studio — Free | CreatorHub" },
+      { name: "twitter:description", content: "Create free MP4 videos from scripts, audio, or images." },
     ],
-    links: [{ rel: "canonical", href: "https://creatorhubforever.lovable.app/tools/ai-video" }],
+    links: [{ rel: "canonical", href: "https://creatorhubforever.lovable.app/tools/ai-video-studio" }],
   }),
-  component: () => <RequireAuth><Page /></RequireAuth>,
+  component: () => null,
 });
-
-function Page() {
-  const [prompt, setPrompt] = useState("Aerial shot of misty mountains at sunrise, cinematic, slow camera push-in");
-  const [url, setUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const generate = async () => {
-    if (!prompt.trim()) return;
-    setLoading(true); setUrl(null);
-    try {
-      const res = await fetch("/api/video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || `Error ${res.status}`);
-      if (!data?.url) throw new Error("No video URL returned by the server");
-      setUrl(data.url);
-    } catch (e) {
-      const raw = e instanceof Error ? e.message : "Video generation failed";
-      // Hide infra/key details — point users to the free Studio instead.
-      const friendly = /replicate|token|api[_ ]?key|unauthor/i.test(raw)
-        ? "AI video clips are temporarily unavailable. Try the free AI Video Studio instead."
-        : raw;
-      toast.error(friendly);
-    } finally { setLoading(false); }
-  };
-
-  return (
-    <ToolShell eyebrow="Video" title="AI Video Generator" description="Generate short cinematic clips from text. 5–10 second outputs.">
-      <div className="grid lg:grid-cols-[1fr_360px] gap-5">
-        <div className="glass rounded-2xl p-2 aspect-video flex items-center justify-center">
-          {loading ? (
-            <div className="flex flex-col items-center gap-3 text-muted-foreground">
-              <Loader2 className="size-8 animate-spin text-brand" />
-              <span className="text-sm">Rendering your video… (can take up to a minute)</span>
-            </div>
-          ) : url ? (
-            <video src={url} controls className="w-full h-full rounded-xl object-cover" />
-          ) : (
-            <div className="flex flex-col items-center gap-3 text-muted-foreground">
-              <Film className="size-8" />
-              <span className="text-sm">Your video will appear here</span>
-            </div>
-          )}
-        </div>
-        <div className="glass rounded-2xl p-5 flex flex-col">
-          <label className="text-xs uppercase tracking-widest text-muted-foreground">Prompt</label>
-          <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={8} maxLength={1500}
-            className="mt-2 flex-1 bg-transparent outline-none resize-none leading-relaxed" />
-          <div className="mt-3 flex flex-col gap-2">
-            <button onClick={generate} disabled={loading || !prompt.trim()}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-brand px-5 py-3 text-primary-foreground font-medium shadow-glow disabled:opacity-50">
-              {loading ? <><Loader2 className="size-4 animate-spin" /> Generating…</> : <><Sparkles className="size-4" /> Generate</>}
-            </button>
-            {url && (
-              <a href={url} download="creatorhub-video.mp4" className="inline-flex items-center justify-center gap-2 rounded-full border border-border px-5 py-3 text-sm hover:bg-accent/40">
-                <Download className="size-4" /> Download
-              </a>
-            )}
-          </div>
-        </div>
-      </div>
-    </ToolShell>
-  );
-}
