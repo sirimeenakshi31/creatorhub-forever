@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Sparkles, Download, Film, FileText, AudioLines, Wand2, Play, Square, User } from "lucide-react";
+import { Loader2, Sparkles, Download, Film, FileText, AudioLines, Wand2, Play, Square, User, ImageIcon, Video as VideoIcon } from "lucide-react";
 import { toast } from "sonner";
 import { ToolShell } from "@/components/ToolShell";
 
 export const Route = createFileRoute("/tools/ai-video-studio")({
   head: () => ({
     meta: [
-      { title: "AI Video Studio — Free Script & Audio to Video | CreatorHub" },
-      { name: "description", content: "Turn any script or audio into a finished video with AI avatars, auto scenes, captions, voiceover, and MP4 export. 100% free, no API keys." },
+      { title: "AI Video Studio — Free Script, Audio, Image & Video to Video | CreatorHub" },
+      { name: "description", content: "Turn scripts, audio, images, or videos into finished AI videos with smart storyboards, AI scene images, characters, captions, voiceover, and MP4 export. 100% free." },
     ],
     links: [{ rel: "canonical", href: "https://creatorhubforever.lovable.app/tools/ai-video-studio" }],
   }),
@@ -19,12 +19,26 @@ type Style =
   | "youtube" | "shorts" | "reels" | "educational" | "cinematic"
   | "motivational" | "tech" | "business" | "vlog"
   | "documentary" | "storytelling";
-type Mode = "script" | "audio" | "faceless";
+type Mode = "script" | "audio" | "faceless" | "image" | "video";
 type Ratio = "auto" | "16:9" | "9:16" | "1:1";
 type Avatar = "none" | "cartoon" | "doll" | "anime" | "business" | "teacher" | "influencer";
 type Transition = "fade" | "slide" | "zoom" | "kenburns" | "typewriter";
 
-type Scene = { caption: string; narration: string; icon: string; transition: Transition };
+type Scene = {
+  caption: string;
+  narration: string;
+  icon: string;
+  transition: Transition;
+  // AI-detected metadata (optional)
+  characters?: string[];
+  location?: string;
+  emotion?: string;
+  action?: string;
+  camera?: string;
+  imagePrompt?: string;
+  // Loaded background (set client-side after image generation)
+  bgImage?: HTMLImageElement | null;
+};
 
 const STYLE_DEFS: Record<Style, { label: string; w: number; h: number; palette: [string, string, string]; font: string }> = {
   youtube:      { label: "YouTube",     w: 1280, h: 720,  palette: ["#FF0033", "#1a0008", "#ffffff"], font: "system-ui" },
@@ -152,24 +166,58 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath();
 }
 
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+/** Draw image as a cover-fit background with Ken Burns pan/zoom driven by progress p (0..1). */
+function drawBackgroundCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, w: number, h: number, p: number, camera?: string) {
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  if (!iw || !ih) return;
+  const baseScale = Math.max(w / iw, h / ih);
+  // Camera-driven motion
+  let zoom = 1.05 + 0.1 * p; // default subtle Ken Burns in
+  let panX = 0, panY = 0;
+  switch (camera) {
+    case "zoom-in":   zoom = 1.02 + 0.18 * p; break;
+    case "zoom-out":  zoom = 1.20 - 0.16 * p; break;
+    case "pan-left":  zoom = 1.10; panX = (0.5 - p) * w * 0.15; break;
+    case "pan-right": zoom = 1.10; panX = (p - 0.5) * w * 0.15; break;
+    case "tracking":  zoom = 1.10; panX = Math.sin(p * Math.PI * 2) * w * 0.04; break;
+    case "orbit":     zoom = 1.12; panX = Math.sin(p * Math.PI * 2) * w * 0.05; panY = Math.cos(p * Math.PI * 2) * h * 0.03; break;
+    case "drone":     zoom = 1.05 + 0.12 * p; panY = (0.5 - p) * h * 0.08; break;
+    case "close-up":  zoom = 1.30 + 0.05 * p; break;
+    case "wide-shot": zoom = 1.02; break;
+    case "static":    zoom = 1.0; break;
+  }
+  const s = baseScale * zoom;
+  const dw = iw * s, dh = ih * s;
+  const dx = (w - dw) / 2 + panX;
+  const dy = (h - dh) / 2 + panY;
+  ctx.drawImage(img, dx, dy, dw, dh);
+}
+
 // ============== Avatar drawing ==============
 function drawAvatar(
   ctx: CanvasRenderingContext2D,
   preset: typeof AVATAR_PRESETS[keyof typeof AVATAR_PRESETS],
   cx: number, cy: number, size: number, mouthOpen: number, t: number,
 ) {
-  // gentle sway + blink
   const sway = Math.sin(t * 1.2) * size * 0.015;
   const blink = (Math.sin(t * 0.9) > 0.97) ? 0.1 : 1;
 
   ctx.save();
   ctx.translate(cx + sway, cy);
 
-  // body / outfit
   ctx.fillStyle = preset.outfit;
   roundRect(ctx, -size * 0.55, size * 0.35, size * 1.1, size * 0.95, size * 0.18);
   ctx.fill();
-  // collar accent
   ctx.fillStyle = preset.accent;
   ctx.beginPath();
   ctx.moveTo(-size * 0.18, size * 0.35);
@@ -178,28 +226,23 @@ function drawAvatar(
   ctx.closePath();
   ctx.fill();
 
-  // neck
   ctx.fillStyle = preset.skin;
   ctx.fillRect(-size * 0.12, size * 0.2, size * 0.24, size * 0.2);
 
-  // head
   ctx.fillStyle = preset.skin;
   ctx.beginPath();
   ctx.ellipse(0, -size * 0.05, size * 0.42, size * 0.5, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // hair (top)
   ctx.fillStyle = preset.hair;
   ctx.beginPath();
   ctx.ellipse(0, -size * 0.32, size * 0.46, size * 0.32, 0, Math.PI, Math.PI * 2);
   ctx.fill();
-  // hair sides
   ctx.beginPath();
   ctx.ellipse(-size * 0.4, -size * 0.05, size * 0.1, size * 0.32, 0, 0, Math.PI * 2);
   ctx.ellipse(size * 0.4, -size * 0.05, size * 0.1, size * 0.32, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // eyes
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
   ctx.ellipse(-size * 0.15, -size * 0.05, size * 0.07, size * 0.09 * blink, 0, 0, Math.PI * 2);
@@ -211,28 +254,24 @@ function drawAvatar(
   ctx.ellipse(size * 0.15, -size * 0.04, size * 0.035, size * 0.045 * blink, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // brows
   ctx.strokeStyle = preset.hair; ctx.lineWidth = size * 0.025; ctx.lineCap = "round";
   ctx.beginPath();
   ctx.moveTo(-size * 0.22, -size * 0.16); ctx.lineTo(-size * 0.08, -size * 0.18);
   ctx.moveTo(size * 0.08, -size * 0.18); ctx.lineTo(size * 0.22, -size * 0.16);
   ctx.stroke();
 
-  // cheeks (blush)
   ctx.fillStyle = hexA("#ff7a90", 0.35);
   ctx.beginPath();
   ctx.ellipse(-size * 0.22, size * 0.08, size * 0.06, size * 0.04, 0, 0, Math.PI * 2);
   ctx.ellipse(size * 0.22, size * 0.08, size * 0.06, size * 0.04, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // mouth (lipsync)
   const mw = size * 0.18;
   const mh = Math.max(size * 0.015, mouthOpen * size * 0.13);
   ctx.fillStyle = "#3a1a1a";
   ctx.beginPath();
   ctx.ellipse(0, size * 0.12, mw, mh, 0, 0, Math.PI * 2);
   ctx.fill();
-  // teeth
   if (mouthOpen > 0.15) {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(-mw * 0.7, size * 0.12 - mh * 0.4, mw * 1.4, mh * 0.35);
@@ -264,9 +303,13 @@ function Page() {
   );
   const [topic, setTopic] = useState("AI for creators");
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [sceneCount, setSceneCount] = useState(6);
   const [voiceHint, setVoiceHint] = useState<"Female" | "Male">("Female");
   const [muteExport, setMuteExport] = useState(false);
+  const [useAIImages, setUseAIImages] = useState(true);
+  const [karaoke, setKaraoke] = useState(true);
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [busy, setBusy] = useState(false);
@@ -285,6 +328,7 @@ function Page() {
   }, [baseCfg, ratio]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const videoElRef = useRef<HTMLVideoElement | null>(null);
   const previewAbortRef = useRef<{ abort: boolean }>({ abort: false });
 
   useEffect(() => {
@@ -306,26 +350,108 @@ function Page() {
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
   }
 
+  async function fetchStoryboard(text: string): Promise<Scene[] | null> {
+    try {
+      const res = await fetch("/api/video/scenes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ script: text, style, sceneCount }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `Storyboard ${res.status}`);
+      const built: Scene[] = (data.scenes as Array<Record<string, unknown>>).map((s, i) => ({
+        narration: String(s.narration ?? "").trim(),
+        caption: String(s.caption ?? `Scene ${i + 1}`).trim(),
+        icon: ICONS[i % ICONS.length],
+        transition: TRANSITIONS[i % TRANSITIONS.length],
+        characters: Array.isArray(s.characters) ? (s.characters as string[]).slice(0, 6) : [],
+        location: typeof s.location === "string" ? s.location : "",
+        emotion: typeof s.emotion === "string" ? s.emotion : "",
+        action: typeof s.action === "string" ? s.action : "",
+        camera: typeof s.camera === "string" ? s.camera : "static",
+        imagePrompt: typeof s.imagePrompt === "string" ? s.imagePrompt : "",
+      }));
+      return built;
+    } catch (e) {
+      toast.error(`AI storyboard failed — falling back to simple split. ${(e as Error).message}`);
+      return null;
+    }
+  }
+
+  async function fetchSceneImages(built: Scene[]) {
+    const aspect: string = styleCfg.h > styleCfg.w ? "1024x1536" : (styleCfg.w === styleCfg.h ? "1024x1024" : "1536x1024");
+    let done = 0;
+    setProgressLabel(`Generating AI scene images (0/${built.length})…`);
+    await Promise.all(built.map(async (sc, i) => {
+      if (!sc.imagePrompt) return;
+      try {
+        const res = await fetch("/api/video/image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: sc.imagePrompt, size: aspect }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || `Image ${res.status}`);
+        const img = await loadImage(data.dataUrl);
+        built[i] = { ...built[i], bgImage: img };
+      } catch (e) {
+        console.warn(`Scene ${i + 1} image failed`, e);
+      } finally {
+        done++;
+        setProgress(20 + Math.round((done / built.length) * 70));
+        setProgressLabel(`Generating AI scene images (${done}/${built.length})…`);
+        setScenes([...built]);
+      }
+    }));
+  }
+
   async function generate() {
     reset();
     setBusy(true);
     try {
       setProgressLabel("Building scenes…"); setProgress(10);
       let built: Scene[] = [];
-      if (mode === "script") {
+
+      if (mode === "image") {
+        if (!imageFile) throw new Error("Please upload an image first.");
+        const url = URL.createObjectURL(imageFile);
+        const img = await loadImage(url);
+        const seed = script.trim() || topic.trim() || "Your story";
+        const baseScenes = splitIntoScenes(seed, sceneCount);
+        const list = baseScenes.length ? baseScenes : topicToScenes(seed, sceneCount);
+        const cameras = ["zoom-in", "pan-right", "zoom-out", "pan-left", "tracking", "orbit"];
+        built = list.map((s, i) => ({ ...s, bgImage: img, camera: cameras[i % cameras.length] }));
+      } else if (mode === "video") {
+        if (!videoFile) throw new Error("Please upload a video first.");
+        const seed = script.trim() || topic.trim() || "Your video";
+        const baseScenes = splitIntoScenes(seed, sceneCount);
+        built = baseScenes.length ? baseScenes : topicToScenes(seed, sceneCount);
+      } else if (mode === "script") {
         if (!script.trim()) throw new Error("Please paste a script first.");
-        built = splitIntoScenes(script, sceneCount);
+        const ai = useAIImages ? await fetchStoryboard(script) : null;
+        built = ai && ai.length ? ai : splitIntoScenes(script, sceneCount);
       } else if (mode === "faceless") {
         if (!topic.trim()) throw new Error("Please enter a topic first.");
-        built = topicToScenes(topic, sceneCount);
+        const seed = `Make a ${sceneCount}-scene short video about: ${topic}. Each scene introduces a fresh angle.`;
+        const ai = useAIImages ? await fetchStoryboard(seed) : null;
+        built = ai && ai.length ? ai : topicToScenes(topic, sceneCount);
       } else {
+        // audio
         if (!audioFile) throw new Error("Please upload an audio file.");
         const seed = (script || topic || "Your story").trim();
-        built = splitIntoScenes(seed, sceneCount);
-        if (built.length === 0) built = topicToScenes(seed, sceneCount);
+        const ai = useAIImages && seed ? await fetchStoryboard(seed) : null;
+        built = ai && ai.length ? ai : (splitIntoScenes(seed, sceneCount).length ? splitIntoScenes(seed, sceneCount) : topicToScenes(seed, sceneCount));
       }
-      setProgress(100);
+
       setScenes(built);
+      setProgress(20);
+
+      // Optionally generate AI scene background images for text-based modes
+      if (useAIImages && (mode === "script" || mode === "faceless" || mode === "audio") && built.some(s => s.imagePrompt)) {
+        await fetchSceneImages(built);
+      }
+
+      setProgress(100);
       setProgressLabel(`Ready — ${built.length} scenes. Press Play to preview.`);
       toast.success("Scenes ready.");
     } catch (e) {
@@ -335,43 +461,56 @@ function Page() {
     }
   }
 
-  // ============== Procedural visual rendering ==============
+  // ============== Rendering ==============
   function drawSceneFrame(
     ctx: CanvasRenderingContext2D,
     sc: Scene, t: number, dur: number, w: number, h: number, idx: number, total: number,
     mouthOpen: number,
+    videoEl?: HTMLVideoElement | null,
   ) {
     const [accent, bg, fg] = styleCfg.palette;
     const p = Math.max(0, Math.min(1, t / Math.max(0.001, dur)));
 
-    // Animated gradient background with hue drift
-    const g = ctx.createLinearGradient(0, 0, w, h);
-    g.addColorStop(0, bg);
-    g.addColorStop(1, mixColor(bg, accent, 0.35 + Math.sin(t * 0.5) * 0.08));
-    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    // Background: video element > AI image > procedural gradient
+    if (videoEl && videoEl.readyState >= 2) {
+      const iw = videoEl.videoWidth, ih = videoEl.videoHeight;
+      if (iw && ih) {
+        const s = Math.max(w / iw, h / ih);
+        const dw = iw * s, dh = ih * s;
+        ctx.drawImage(videoEl, (w - dw) / 2, (h - dh) / 2, dw, dh);
+      } else {
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+      }
+    } else if (sc.bgImage) {
+      ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+      drawBackgroundCover(ctx, sc.bgImage, w, h, p, sc.camera);
+      // Subtle dark gradient overlay for caption legibility
+      const og = ctx.createLinearGradient(0, h * 0.5, 0, h);
+      og.addColorStop(0, hexA("#000000", 0));
+      og.addColorStop(1, hexA("#000000", 0.55));
+      ctx.fillStyle = og; ctx.fillRect(0, 0, w, h);
+    } else {
+      const g = ctx.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, bg);
+      g.addColorStop(1, mixColor(bg, accent, 0.35 + Math.sin(t * 0.5) * 0.08));
+      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
 
-    // Drifting accent blobs
-    for (let i = 0; i < 3; i++) {
-      const cx = w * (0.2 + 0.3 * i) + Math.sin((p + i) * Math.PI) * 60;
-      const cy = h * (0.3 + 0.15 * i) + Math.cos((p + i) * Math.PI) * 40;
-      const rr = Math.min(w, h) * (0.25 + 0.05 * i);
-      const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr);
-      rg.addColorStop(0, hexA(accent, 0.28));
-      rg.addColorStop(1, hexA(accent, 0));
-      ctx.fillStyle = rg; ctx.fillRect(0, 0, w, h);
+      for (let i = 0; i < 3; i++) {
+        const cx = w * (0.2 + 0.3 * i) + Math.sin((p + i) * Math.PI) * 60;
+        const cy = h * (0.3 + 0.15 * i) + Math.cos((p + i) * Math.PI) * 40;
+        const rr = Math.min(w, h) * (0.25 + 0.05 * i);
+        const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr);
+        rg.addColorStop(0, hexA(accent, 0.28));
+        rg.addColorStop(1, hexA(accent, 0));
+        ctx.fillStyle = rg; ctx.fillRect(0, 0, w, h);
+      }
+      drawParticles(ctx, w, h, t + idx * 1.7, accent);
+      ctx.strokeStyle = hexA(fg, 0.05); ctx.lineWidth = 1;
+      const gs = 64;
+      for (let x = 0; x < w; x += gs) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+      for (let y = 0; y < h; y += gs) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
     }
 
-    // Particle layer
-    drawParticles(ctx, w, h, t + idx * 1.7, accent);
-
-    // Subtle grid
-    ctx.strokeStyle = hexA(fg, 0.05); ctx.lineWidth = 1;
-    const gs = 64;
-    for (let x = 0; x < w; x += gs) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
-    for (let y = 0; y < h; y += gs) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
-
-    // ============ Per-scene transition ============
-    // Enter (0..0.18), Exit (0.82..1)
     const enter = Math.min(1, p / 0.18);
     const exit = Math.min(1, (1 - p) / 0.18);
     const trans = sc.transition;
@@ -381,29 +520,17 @@ function Page() {
     let glyphScale = 1;
     let glyphAlpha = 1;
 
-    if (trans === "fade") {
-      glyphAlpha = enter * exit;
-    } else if (trans === "slide") {
-      glyphX = w / 2 + (1 - enter) * w * 0.4 - (1 - exit) * w * 0.4;
-      glyphAlpha = enter * exit;
-    } else if (trans === "zoom") {
-      glyphScale = 0.6 + enter * 0.4 + (1 - exit) * 0.2;
-      glyphAlpha = enter * exit;
-    } else if (trans === "kenburns") {
-      glyphScale = 1 + 0.15 * p;
-      glyphX = w / 2 + Math.sin(p * Math.PI) * w * 0.04;
-      glyphAlpha = enter * exit;
-    } else if (trans === "typewriter") {
-      glyphScale = 1; glyphAlpha = enter * exit;
-    }
+    if (trans === "fade")          { glyphAlpha = enter * exit; }
+    else if (trans === "slide")    { glyphX = w / 2 + (1 - enter) * w * 0.4 - (1 - exit) * w * 0.4; glyphAlpha = enter * exit; }
+    else if (trans === "zoom")     { glyphScale = 0.6 + enter * 0.4 + (1 - exit) * 0.2; glyphAlpha = enter * exit; }
+    else if (trans === "kenburns") { glyphScale = 1 + 0.15 * p; glyphX = w / 2 + Math.sin(p * Math.PI) * w * 0.04; glyphAlpha = enter * exit; }
+    else if (trans === "typewriter") { glyphScale = 1; glyphAlpha = enter * exit; }
 
-    // Avatar (if enabled)
     if (avatar !== "none") {
       const preset = AVATAR_PRESETS[avatar];
       const size = Math.min(w, h) * 0.32;
       drawAvatar(ctx, preset, w / 2, h * 0.48, size, mouthOpen, t);
-    } else {
-      // Big decorative glyph
+    } else if (!sc.bgImage && !videoEl) {
       ctx.save();
       ctx.globalAlpha = glyphAlpha;
       ctx.translate(glyphX, glyphY);
@@ -424,6 +551,15 @@ function Page() {
     ctx.textAlign = "right";
     ctx.fillText(STYLE_DEFS[style].label.toUpperCase(), w - h * 0.04, h * 0.04);
 
+    // Optional location/emotion badge (top-left, second row)
+    if (sc.location || sc.emotion) {
+      const badge = [sc.location, sc.emotion].filter(Boolean).join(" • ");
+      ctx.fillStyle = hexA(accent, 0.9);
+      ctx.font = `500 ${Math.round(h * 0.022)}px ${styleCfg.font}`;
+      ctx.textAlign = "left";
+      ctx.fillText(badge.toUpperCase(), h * 0.04, h * 0.04 + Math.round(h * 0.035));
+    }
+
     // ============ Caption ============
     const fontSize = Math.round(h * 0.055);
     ctx.font = `700 ${fontSize}px ${styleCfg.font}`;
@@ -442,9 +578,9 @@ function Page() {
     const measured = Math.max(...lines.map(l => ctx.measureText(l).width), 1);
     const boxW = Math.min(w - h * 0.1, measured + padding * 2);
 
-    let boxX = (w - boxW) / 2;
+    const boxX = (w - boxW) / 2;
     let boxY = h - boxH - h * 0.08;
-    let captionAlpha = enter * exit;
+    const captionAlpha = enter * exit;
     if (trans === "slide") boxY += (1 - enter) * h * 0.1;
 
     ctx.globalAlpha = 1;
@@ -452,10 +588,26 @@ function Page() {
     roundRect(ctx, boxX, boxY, boxW, boxH, Math.min(24, boxH / 2));
     ctx.fill();
 
-    ctx.fillStyle = hexA(fg, captionAlpha);
-    lines.forEach((ln, i) => {
-      ctx.fillText(ln, w / 2, boxY + padding * 0.6 + lineH * (i + 0.5));
-    });
+    // Karaoke: highlight current word
+    if (karaoke && lines.length === 1) {
+      const words = lines[0].split(/\s+/);
+      const wordIdx = Math.min(words.length - 1, Math.floor(p * words.length));
+      let xCursor = w / 2 - ctx.measureText(lines[0]).width / 2;
+      const y = boxY + boxH / 2;
+      ctx.textAlign = "left";
+      words.forEach((wd, wi) => {
+        const wWidth = ctx.measureText(wd + " ").width;
+        ctx.fillStyle = wi === wordIdx ? hexA(accent, captionAlpha) : hexA(fg, captionAlpha * 0.9);
+        ctx.fillText(wd, xCursor, y);
+        xCursor += wWidth;
+      });
+      ctx.textAlign = "center";
+    } else {
+      ctx.fillStyle = hexA(fg, captionAlpha);
+      lines.forEach((ln, i) => {
+        ctx.fillText(ln, w / 2, boxY + padding * 0.6 + lineH * (i + 0.5));
+      });
+    }
 
     // Bottom progress bar
     const overall = (idx + p) / Math.max(1, total);
@@ -467,10 +619,23 @@ function Page() {
     ctx.globalAlpha = 1;
   }
 
-  // Simulate lipsync openness from time (since browser TTS isn't capturable)
   function lipSync(t: number, speaking: boolean) {
     if (!speaking) return 0;
     return Math.max(0, Math.sin(t * 9) * 0.5 + 0.5) * (0.4 + Math.sin(t * 3) * 0.3);
+  }
+
+  async function setupVideoEl(file: File): Promise<HTMLVideoElement> {
+    const v = document.createElement("video");
+    v.src = URL.createObjectURL(file);
+    v.crossOrigin = "anonymous";
+    v.muted = muteExport;
+    v.playsInline = true;
+    await new Promise<void>((res) => {
+      v.addEventListener("loadedmetadata", () => res(), { once: true });
+      v.addEventListener("error", () => res(), { once: true });
+    });
+    videoElRef.current = v;
+    return v;
   }
 
   async function playPreview() {
@@ -484,6 +649,25 @@ function Page() {
     canvas.width = styleCfg.w; canvas.height = styleCfg.h;
 
     const voice = pickVoice(voices, voiceHint);
+
+    if (mode === "video" && videoFile) {
+      const v = await setupVideoEl(videoFile);
+      v.muted = false;
+      v.play().catch(() => {});
+      const total = v.duration && isFinite(v.duration) ? v.duration : scenes.length * 4;
+      const per = total / scenes.length;
+      const start = performance.now();
+      const loop = () => {
+        if (myToken.abort) { v.pause(); return; }
+        const elapsed = (performance.now() - start) / 1000;
+        if (elapsed >= total) { v.pause(); return; }
+        const idx = Math.min(scenes.length - 1, Math.floor(elapsed / per));
+        drawSceneFrame(ctx, scenes[idx], elapsed - idx * per, per, canvas.width, canvas.height, idx, scenes.length, 0, v);
+        requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+      return;
+    }
 
     if (mode === "audio" && audioFile) {
       const audio = new Audio(URL.createObjectURL(audioFile));
@@ -530,6 +714,7 @@ function Page() {
   function stopPreview() {
     previewAbortRef.current.abort = true;
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    if (videoElRef.current) { try { videoElRef.current.pause(); } catch { /* noop */ } }
   }
 
   async function exportVideo() {
@@ -545,6 +730,7 @@ function Page() {
       const videoStream = canvas.captureStream(30);
       let combinedStream: MediaStream = videoStream;
       let audioEl: HTMLAudioElement | null = null;
+      let videoSrcEl: HTMLVideoElement | null = null;
       let audioCtx: AudioContext | null = null;
 
       if (mode === "audio" && audioFile && !muteExport) {
@@ -558,6 +744,25 @@ function Page() {
           ...videoStream.getVideoTracks(),
           ...dest.stream.getAudioTracks(),
         ]);
+      }
+
+      if (mode === "video" && videoFile) {
+        videoSrcEl = await setupVideoEl(videoFile);
+        if (!muteExport) {
+          try {
+            audioCtx = new AudioContext();
+            const dest = audioCtx.createMediaStreamDestination();
+            const src = audioCtx.createMediaElementSource(videoSrcEl);
+            src.connect(dest);
+            src.connect(audioCtx.destination);
+            combinedStream = new MediaStream([
+              ...videoStream.getVideoTracks(),
+              ...dest.stream.getAudioTracks(),
+            ]);
+          } catch {
+            // ignore — keep silent video
+          }
+        }
       }
 
       const candidates = [
@@ -588,6 +793,12 @@ function Page() {
         const per = total / scenes.length;
         for (let i = 0; i < scenes.length; i++) durations.push(per);
         if (audioEl && !muteExport) audioEl.play().catch(() => {});
+      } else if (mode === "video" && videoSrcEl) {
+        total = videoSrcEl.duration && isFinite(videoSrcEl.duration) ? videoSrcEl.duration : scenes.length * 4;
+        const per = total / scenes.length;
+        for (let i = 0; i < scenes.length; i++) durations.push(per);
+        videoSrcEl.currentTime = 0;
+        videoSrcEl.play().catch(() => {});
       } else {
         for (const s of scenes) durations.push(estimateDuration(s.narration));
         total = durations.reduce((a, b) => a + b, 0);
@@ -605,7 +816,7 @@ function Page() {
           let idx = 0;
           for (let i = 0; i < offsets.length; i++) if (elapsed >= offsets[i]) idx = i;
           const localT = elapsed - offsets[idx];
-          drawSceneFrame(ctx, scenes[idx], localT, durations[idx], canvas.width, canvas.height, idx, scenes.length, lipSync(elapsed, true));
+          drawSceneFrame(ctx, scenes[idx], localT, durations[idx], canvas.width, canvas.height, idx, scenes.length, lipSync(elapsed, true), videoSrcEl);
           requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);
@@ -614,6 +825,7 @@ function Page() {
       rec.stop();
       const blob = await done;
       if (audioCtx) audioCtx.close().catch(() => {});
+      if (videoSrcEl) { try { videoSrcEl.pause(); } catch { /* noop */ } }
       const url = URL.createObjectURL(blob);
       setExportedUrl(url);
       setProgress(100);
@@ -632,14 +844,16 @@ function Page() {
     <ToolShell
       eyebrow="Video Studio"
       title="AI Video Studio"
-      description="Turn a script, audio file, or topic into a finished video — with AI characters, captions, voiceover, and MP4 export. 100% free."
+      description="Turn a script, audio, image, video, or topic into a finished video — with AI storyboards, generated scene images, characters, karaoke captions, and MP4 export. 100% free."
     >
       {/* Mode tabs */}
-      <div className="glass rounded-2xl p-2 inline-flex gap-1 mb-5">
+      <div className="glass rounded-2xl p-2 inline-flex flex-wrap gap-1 mb-5">
         {([
           { id: "script", label: "Script → Video", icon: FileText },
           { id: "audio", label: "Audio → Video", icon: AudioLines },
-          { id: "faceless", label: "Faceless (Topic)", icon: Wand2 },
+          { id: "image", label: "Image → Video", icon: ImageIcon },
+          { id: "video", label: "Video → Video", icon: VideoIcon },
+          { id: "faceless", label: "Topic", icon: Wand2 },
         ] as { id: Mode; label: string; icon: typeof FileText }[]).map(({ id, label, icon: Icon }) => (
           <button key={id} onClick={() => setMode(id)}
             className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition ${
@@ -654,7 +868,7 @@ function Page() {
         <div className="lg:col-span-2 glass rounded-2xl p-5 space-y-4">
           {mode === "script" && (
             <label className="block">
-              <div className="text-sm mb-2">Your script</div>
+              <div className="text-sm mb-2">Your script, story, or article</div>
               <textarea value={script} onChange={(e) => setScript(e.target.value)} rows={10}
                 className="w-full rounded-xl bg-background/40 border border-border p-3 text-sm" />
             </label>
@@ -678,6 +892,32 @@ function Page() {
               <div className="mt-3 text-sm mb-1">Caption seed (optional)</div>
               <textarea value={script} onChange={(e) => setScript(e.target.value)} rows={4}
                 placeholder="Paste a rough script or talking points for on-screen captions."
+                className="w-full rounded-xl bg-background/40 border border-border p-3 text-sm" />
+            </label>
+          )}
+          {mode === "image" && (
+            <label className="block">
+              <div className="text-sm mb-2">Image (JPG / PNG)</div>
+              <input type="file" accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                className="w-full text-sm" />
+              <p className="text-xs text-muted-foreground mt-2">Animated with Ken Burns / pan / zoom across {sceneCount} scenes.</p>
+              <div className="mt-3 text-sm mb-1">Caption seed (optional)</div>
+              <textarea value={script} onChange={(e) => setScript(e.target.value)} rows={4}
+                placeholder="Optional script — adds captions and voiceover over the animated image."
+                className="w-full rounded-xl bg-background/40 border border-border p-3 text-sm" />
+            </label>
+          )}
+          {mode === "video" && (
+            <label className="block">
+              <div className="text-sm mb-2">Video file (MP4 / WebM)</div>
+              <input type="file" accept="video/*"
+                onChange={(e) => setVideoFile(e.target.files?.[0] ?? null)}
+                className="w-full text-sm" />
+              <p className="text-xs text-muted-foreground mt-2">Plays your video with overlaid captions, scene markers, and style frame.</p>
+              <div className="mt-3 text-sm mb-1">Caption seed (optional)</div>
+              <textarea value={script} onChange={(e) => setScript(e.target.value)} rows={4}
+                placeholder="Optional script — overlays as captions across the video."
                 className="w-full rounded-xl bg-background/40 border border-border p-3 text-sm" />
             </label>
           )}
@@ -706,7 +946,7 @@ function Page() {
               <div className="text-xs text-muted-foreground mb-1 inline-flex items-center gap-1.5"><User className="size-3" /> AI Character</div>
               <select value={avatar} onChange={(e) => setAvatar(e.target.value as Avatar)}
                 className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm">
-                <option value="none">None (icon visuals)</option>
+                <option value="none">None (clean visuals)</option>
                 {Object.entries(AVATAR_PRESETS).map(([id, p]) => (
                   <option key={id} value={id}>{p.label}</option>
                 ))}
@@ -727,10 +967,20 @@ function Page() {
                 <option>Male</option>
               </select>
             </label>
-            {mode === "audio" && (
+
+            <label className="flex items-center gap-2 text-sm col-span-2">
+              <input type="checkbox" checked={useAIImages} onChange={(e) => setUseAIImages(e.target.checked)} />
+              <span>AI storyboard + generated scene images <span className="text-muted-foreground">(text modes — uses free AI credits)</span></span>
+            </label>
+            <label className="flex items-center gap-2 text-sm col-span-2">
+              <input type="checkbox" checked={karaoke} onChange={(e) => setKaraoke(e.target.checked)} />
+              Karaoke captions (highlight current word)
+            </label>
+
+            {(mode === "audio" || mode === "video") && (
               <label className="flex items-center gap-2 text-sm col-span-2">
                 <input type="checkbox" checked={muteExport} onChange={(e) => setMuteExport(e.target.checked)} />
-                Mute audio in export
+                Mute source audio in export
               </label>
             )}
           </div>
@@ -780,21 +1030,29 @@ function Page() {
               <canvas ref={canvasRef} className="w-full h-full block" />
             </div>
             <p className="mt-2 text-xs text-muted-foreground text-center">
-              Preview uses your browser's built-in voice. Exports include video + uploaded audio (script/topic exports are silent — perfect for adding music later).
+              Preview uses your browser's built-in voice. Exports include video + uploaded audio/video source.
             </p>
           </div>
 
           {scenes.length > 0 && (
             <div className="glass rounded-2xl p-4">
-              <div className="text-sm font-medium mb-3">Scenes ({scenes.length})</div>
+              <div className="text-sm font-medium mb-3">Storyboard ({scenes.length} scenes)</div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {scenes.map((s, i) => (
-                  <div key={i} className="rounded-xl border border-border p-3 text-xs">
+                  <div key={i} className="rounded-xl border border-border p-3 text-xs overflow-hidden">
+                    {s.bgImage && (
+                      <img src={s.bgImage.src} alt="" className="w-full h-20 object-cover rounded-md mb-2" />
+                    )}
                     <div className="text-muted-foreground mb-1 flex justify-between">
                       <span>Scene {i + 1}</span>
-                      <span className="uppercase tracking-wider">{s.transition}</span>
+                      <span className="uppercase tracking-wider">{s.camera || s.transition}</span>
                     </div>
                     <div className="font-medium mb-1 line-clamp-2">{s.caption}</div>
+                    {(s.characters?.length || s.location || s.emotion) && (
+                      <div className="text-[10px] text-muted-foreground mb-1 line-clamp-2">
+                        {[s.characters?.join(", "), s.location, s.emotion].filter(Boolean).join(" • ")}
+                      </div>
+                    )}
                     <div className="text-muted-foreground line-clamp-3">{s.narration}</div>
                   </div>
                 ))}

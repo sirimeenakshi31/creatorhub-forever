@@ -27,6 +27,7 @@ import { Route as ApiFaceSwapRouteImport } from './routes/api/face-swap'
 import { Route as ApiAudioRouteImport } from './routes/api/audio'
 import { Route as ToolsResourcesKindRouteImport } from './routes/tools.resources.$kind'
 import { Route as ApiVideoScenesRouteImport } from './routes/api/video.scenes'
+import { Route as ApiVideoImageRouteImport } from './routes/api/video.image'
 import { Route as ApiReplicateRunRouteImport } from './routes/api/replicate.run'
 import { Route as ApiAiTextRouteImport } from './routes/api/ai.text'
 import { Route as ApiAiImageRouteImport } from './routes/api/ai.image'
@@ -121,6 +122,11 @@ const ApiVideoScenesRoute = ApiVideoScenesRouteImport.update({
   path: '/scenes',
   getParentRoute: () => ApiVideoRoute,
 } as any)
+const ApiVideoImageRoute = ApiVideoImageRouteImport.update({
+  id: '/image',
+  path: '/image',
+  getParentRoute: () => ApiVideoRoute,
+} as any)
 const ApiReplicateRunRoute = ApiReplicateRunRouteImport.update({
   id: '/api/replicate/run',
   path: '/api/replicate/run',
@@ -157,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/api/ai/image': typeof ApiAiImageRoute
   '/api/ai/text': typeof ApiAiTextRoute
   '/api/replicate/run': typeof ApiReplicateRunRoute
+  '/api/video/image': typeof ApiVideoImageRoute
   '/api/video/scenes': typeof ApiVideoScenesRoute
   '/tools/resources/$kind': typeof ToolsResourcesKindRoute
 }
@@ -180,6 +187,7 @@ export interface FileRoutesByTo {
   '/api/ai/image': typeof ApiAiImageRoute
   '/api/ai/text': typeof ApiAiTextRoute
   '/api/replicate/run': typeof ApiReplicateRunRoute
+  '/api/video/image': typeof ApiVideoImageRoute
   '/api/video/scenes': typeof ApiVideoScenesRoute
   '/tools/resources/$kind': typeof ToolsResourcesKindRoute
 }
@@ -204,6 +212,7 @@ export interface FileRoutesById {
   '/api/ai/image': typeof ApiAiImageRoute
   '/api/ai/text': typeof ApiAiTextRoute
   '/api/replicate/run': typeof ApiReplicateRunRoute
+  '/api/video/image': typeof ApiVideoImageRoute
   '/api/video/scenes': typeof ApiVideoScenesRoute
   '/tools/resources/$kind': typeof ToolsResourcesKindRoute
 }
@@ -229,6 +238,7 @@ export interface FileRouteTypes {
     | '/api/ai/image'
     | '/api/ai/text'
     | '/api/replicate/run'
+    | '/api/video/image'
     | '/api/video/scenes'
     | '/tools/resources/$kind'
   fileRoutesByTo: FileRoutesByTo
@@ -252,6 +262,7 @@ export interface FileRouteTypes {
     | '/api/ai/image'
     | '/api/ai/text'
     | '/api/replicate/run'
+    | '/api/video/image'
     | '/api/video/scenes'
     | '/tools/resources/$kind'
   id:
@@ -275,6 +286,7 @@ export interface FileRouteTypes {
     | '/api/ai/image'
     | '/api/ai/text'
     | '/api/replicate/run'
+    | '/api/video/image'
     | '/api/video/scenes'
     | '/tools/resources/$kind'
   fileRoutesById: FileRoutesById
@@ -430,6 +442,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVideoScenesRouteImport
       parentRoute: typeof ApiVideoRoute
     }
+    '/api/video/image': {
+      id: '/api/video/image'
+      path: '/image'
+      fullPath: '/api/video/image'
+      preLoaderRoute: typeof ApiVideoImageRouteImport
+      parentRoute: typeof ApiVideoRoute
+    }
     '/api/replicate/run': {
       id: '/api/replicate/run'
       path: '/api/replicate/run'
@@ -455,10 +474,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface ApiVideoRouteChildren {
+  ApiVideoImageRoute: typeof ApiVideoImageRoute
   ApiVideoScenesRoute: typeof ApiVideoScenesRoute
 }
 
 const ApiVideoRouteChildren: ApiVideoRouteChildren = {
+  ApiVideoImageRoute: ApiVideoImageRoute,
   ApiVideoScenesRoute: ApiVideoScenesRoute,
 }
 
@@ -491,13 +512,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
