@@ -11,10 +11,16 @@ const json = (d: unknown, s = 200) =>
 
 const STYLE_HINTS: Record<string, string> = {
   cinematic: "cinematic, anamorphic lens, dramatic lighting, film grain, shallow depth of field, color graded",
-  youtube: "vibrant, high contrast, eye-catching thumbnail aesthetic, modern, well-lit",
+  youtube: "vibrant, high contrast, eye-catching, modern, well-lit, clean composition",
   reels: "vertical 9:16 framing, trendy, social-media energetic, bold colors",
   shorts: "vertical 9:16 framing, punchy, fast-paced, bold subject centered",
   educational: "clean illustrative style, clear subject, infographic feel, soft lighting, neutral background",
+  motivational: "epic golden-hour lighting, inspiring, wide vista, hopeful, hero shot",
+  tech: "futuristic, neon accents, dark UI aesthetic, holographic, sci-fi",
+  business: "professional, corporate, soft daylight, modern office or boardroom, polished",
+  vlog: "candid lifestyle photography, warm light, handheld feel, authentic",
+  documentary: "natural lighting, photojournalistic, real-world, documentary realism",
+  storytelling: "storybook illustration, whimsical, painterly, atmospheric",
 };
 
 export const Route = createFileRoute("/api/video/scenes")({
@@ -40,7 +46,18 @@ export const Route = createFileRoute("/api/video/scenes")({
           const key = process.env.LOVABLE_API_KEY;
           if (!key) return json({ error: "LOVABLE_API_KEY missing on server" }, 503);
 
-          const system = `You are a video director. Split the user's script into exactly ${n} scenes. Return ONLY raw JSON (no markdown fences) shaped: {"scenes":[{"narration":string (one or two sentences spoken in this scene, taken/paraphrased from the script),"caption":string (5-9 word on-screen caption),"imagePrompt":string (a detailed visual prompt; always append: "${styleHint}")}]}. Keep narration faithful to the source script. Ensure the scenes cover the full script in order.`;
+          const system = `You are a video director and storyboard artist. Split the user's text into exactly ${n} scenes. For each scene, analyze the content to detect characters, location, emotion, action, and the best camera shot. Return ONLY raw JSON (no markdown) shaped:
+{"scenes":[{
+  "narration": string (1-2 sentences spoken in this scene, faithful to the source),
+  "caption": string (5-9 word on-screen caption),
+  "characters": string[] (e.g. ["young woman","dog"] — empty if none),
+  "location": string (e.g. "forest at dawn"),
+  "emotion": string (one of: happy, sad, excited, hopeful, curious, motivated, calm, shocked, fearful, inspired, neutral),
+  "action": string (short verb phrase, e.g. "walking through trees"),
+  "camera": string (one of: zoom-in, zoom-out, pan-left, pan-right, tracking, orbit, drone, close-up, wide-shot, static),
+  "imagePrompt": string (a vivid, detailed image prompt that visually depicts this scene; ALWAYS append: "${styleHint}")
+}]}
+Keep narration faithful, cover the full text in order, and make each scene visually distinct.`;
 
           const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
@@ -62,7 +79,7 @@ export const Route = createFileRoute("/api/video/scenes")({
           }
           const data = await resp.json();
           const content = data?.choices?.[0]?.message?.content ?? "{}";
-          let parsed: { scenes?: Array<{ narration: string; caption: string; imagePrompt: string }> };
+          let parsed: { scenes?: unknown[] };
           try {
             parsed = JSON.parse(content);
           } catch {
