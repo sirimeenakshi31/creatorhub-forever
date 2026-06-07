@@ -796,7 +796,8 @@ function Page() {
     canvas.width = styleCfg.w; canvas.height = styleCfg.h;
 
     const vp = VOICE_PROFILES[voiceHint];
-    const voice = pickVoice(voices, vp.hint);
+    const activeLang = language === "auto" ? (detectedLang || "en") : language;
+    const voice = pickVoice(voices, vp.hint, activeLang);
 
     if (mode === "video" && videoFile) {
       const v = await setupVideoEl(videoFile);
