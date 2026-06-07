@@ -1123,8 +1123,28 @@ function Page() {
                 {Object.keys(VOICE_PROFILES).map((k) => <option key={k} value={k}>{k}</option>)}
               </select>
             </label>
+            <label className="block">
+              <div className="text-xs text-muted-foreground mb-1">Language</div>
+              <select value={language} onChange={(e) => setLanguage(e.target.value)}
+                className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm">
+                {Object.entries(LANGUAGES).map(([k, v]) => (
+                  <option key={k} value={k}>{v.label}{k === "auto" && detectedLang ? ` → ${LANGUAGES[detectedLang]?.label || detectedLang}` : ""}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <div className="text-xs text-muted-foreground mb-1">Face preservation (image/video)</div>
+              <select value={facePres} onChange={(e) => setFacePres(e.target.value as FacePreservation)}
+                className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm">
+                <option value="exact">Exact face</option>
+                <option value="similar">Similar</option>
+                <option value="cartoon">Cartoon</option>
+                <option value="anime">Anime</option>
+                <option value="doll">3D Doll</option>
+              </select>
+            </label>
             <label className="block col-span-2">
-              <div className="text-xs text-muted-foreground mb-1">Special FX overlay</div>
+              <div className="text-xs text-muted-foreground mb-1">Default FX overlay (per-scene override below)</div>
               <select value={fx} onChange={(e) => setFx(e.target.value as Fx)}
                 className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm">
                 <option value="none">None</option>
@@ -1136,6 +1156,12 @@ function Page() {
                 <option value="confetti">Confetti</option>
                 <option value="magic">Magic particles</option>
               </select>
+            </label>
+            <label className="block col-span-2">
+              <div className="text-xs text-muted-foreground mb-1">FX intensity ({fxIntensity.toFixed(1)}×)</div>
+              <input type="range" min={0.2} max={2.5} step={0.1} value={fxIntensity}
+                onChange={(e) => setFxIntensity(Number(e.target.value))}
+                className="w-full" />
             </label>
 
             <label className="flex items-center gap-2 text-sm col-span-2">
