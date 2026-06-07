@@ -479,6 +479,14 @@ function Page() {
     return () => { window.speechSynthesis.onvoiceschanged = null; };
   }, []);
 
+  // Auto language detection from script/topic input
+  useEffect(() => {
+    const sample = (script.trim() || topic.trim()).slice(0, 800);
+    if (!sample) return;
+    const lang = detectLanguage(sample);
+    if (lang) setDetectedLang(lang);
+  }, [script, topic]);
+
   useEffect(() => () => {
     previewAbortRef.current.abort = true;
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
