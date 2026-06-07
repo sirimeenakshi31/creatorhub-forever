@@ -175,20 +175,23 @@ function topicToScenes(topic: string, count: number): Scene[] {
   }));
 }
 
-function pickVoice(voices: SpeechSynthesisVoice[], hint: string) {
+function pickVoice(voices: SpeechSynthesisVoice[], hint: string, lang = "en") {
   if (!voices.length) return null;
-  const en = voices.filter((v) => v.lang?.toLowerCase().startsWith("en"));
-  const pool = en.length ? en : voices;
+  const langLower = (lang || "en").toLowerCase();
+  const localized = voices.filter((v) => v.lang?.toLowerCase().startsWith(langLower));
+  const fallback = voices.filter((v) => v.lang?.toLowerCase().startsWith("en"));
+  const pool = localized.length ? localized : (fallback.length ? fallback : voices);
   const lower = hint.toLowerCase();
   return pool.find((v) => v.name.toLowerCase().includes(lower)) || pool[0];
 }
 
-function speak(text: string, voice: SpeechSynthesisVoice | null, rate = 1, pitch = 1): Promise<void> {
+function speak(text: string, voice: SpeechSynthesisVoice | null, rate = 1, pitch = 1, lang = ""): Promise<void> {
   return new Promise((resolve) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) { resolve(); return; }
     try {
       const u = new SpeechSynthesisUtterance(text);
       if (voice) u.voice = voice;
+      if (lang) u.lang = lang;
       u.rate = rate; u.pitch = pitch;
       u.onend = () => resolve();
       u.onerror = () => resolve();
