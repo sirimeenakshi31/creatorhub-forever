@@ -719,7 +719,8 @@ function Page() {
     const ctx = canvas.getContext("2d")!;
     canvas.width = styleCfg.w; canvas.height = styleCfg.h;
 
-    const voice = pickVoice(voices, voiceHint);
+    const vp = VOICE_PROFILES[voiceHint];
+    const voice = pickVoice(voices, vp.hint);
 
     if (mode === "video" && videoFile) {
       const v = await setupVideoEl(videoFile);
