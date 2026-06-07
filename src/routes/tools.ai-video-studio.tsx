@@ -702,7 +702,7 @@ function Page() {
       ctx.fillText(badge.toUpperCase(), h * 0.04, h * 0.04 + Math.round(h * 0.035));
     }
 
-    drawFx(ctx, w, h, t, fx, accent);
+    drawFx(ctx, w, h, t, sc.fx ?? fx, accent, sc.fxIntensity ?? fxIntensity);
 
     // ============ Caption ============
     const fontSize = Math.round(h * 0.055);
