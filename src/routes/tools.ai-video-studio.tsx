@@ -1033,10 +1033,23 @@ function Page() {
             </label>
             <label className="block">
               <div className="text-xs text-muted-foreground mb-1">Voice (preview)</div>
-              <select value={voiceHint} onChange={(e) => setVoiceHint(e.target.value as "Female" | "Male")}
+              <select value={voiceHint} onChange={(e) => setVoiceHint(e.target.value as VoiceProfile)}
                 className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm">
-                <option>Female</option>
-                <option>Male</option>
+                {Object.keys(VOICE_PROFILES).map((k) => <option key={k} value={k}>{k}</option>)}
+              </select>
+            </label>
+            <label className="block col-span-2">
+              <div className="text-xs text-muted-foreground mb-1">Special FX overlay</div>
+              <select value={fx} onChange={(e) => setFx(e.target.value as Fx)}
+                className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm">
+                <option value="none">None</option>
+                <option value="rain">Rain</option>
+                <option value="snow">Snow</option>
+                <option value="fire">Fire</option>
+                <option value="smoke">Smoke</option>
+                <option value="sparkles">Sparkles</option>
+                <option value="confetti">Confetti</option>
+                <option value="magic">Magic particles</option>
               </select>
             </label>
 
