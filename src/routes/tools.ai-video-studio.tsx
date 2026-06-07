@@ -25,6 +25,26 @@ type Avatar = "none" | "cartoon" | "doll" | "anime" | "business" | "teacher" | "
 type Transition = "fade" | "slide" | "zoom" | "kenburns" | "typewriter";
 type Fx = "none" | "rain" | "snow" | "fire" | "smoke" | "sparkles" | "confetti" | "magic";
 type VoiceProfile = "Female" | "Male" | "Child" | "Elderly" | "Narrator" | "Motivational";
+type FacePreservation = "exact" | "similar" | "cartoon" | "anime" | "doll";
+
+const LANGUAGES: Record<string, { label: string; bcp: string }> = {
+  auto: { label: "Auto-detect", bcp: "" },
+  en:   { label: "English",     bcp: "en" },
+  es:   { label: "Spanish",     bcp: "es" },
+  fr:   { label: "French",      bcp: "fr" },
+  de:   { label: "German",      bcp: "de" },
+  it:   { label: "Italian",     bcp: "it" },
+  pt:   { label: "Portuguese",  bcp: "pt" },
+  nl:   { label: "Dutch",       bcp: "nl" },
+  ru:   { label: "Russian",     bcp: "ru" },
+  pl:   { label: "Polish",      bcp: "pl" },
+  tr:   { label: "Turkish",     bcp: "tr" },
+  ar:   { label: "Arabic",      bcp: "ar" },
+  hi:   { label: "Hindi",       bcp: "hi" },
+  ja:   { label: "Japanese",    bcp: "ja" },
+  ko:   { label: "Korean",      bcp: "ko" },
+  zh:   { label: "Chinese",     bcp: "zh" },
+};
 
 const VOICE_PROFILES: Record<VoiceProfile, { hint: string; rate: number; pitch: number }> = {
   Female:       { hint: "female",   rate: 1.0,  pitch: 1.05 },
@@ -34,6 +54,62 @@ const VOICE_PROFILES: Record<VoiceProfile, { hint: string; rate: number; pitch: 
   Narrator:     { hint: "google",   rate: 0.95, pitch: 0.95 },
   Motivational: { hint: "male",     rate: 1.05, pitch: 1.1 },
 };
+
+const FACE_FILTERS: Record<FacePreservation, string> = {
+  exact:   "none",
+  similar: "blur(0.6px) saturate(1.05)",
+  cartoon: "saturate(1.6) contrast(1.25) brightness(1.05)",
+  anime:   "saturate(1.8) contrast(1.35) hue-rotate(-5deg)",
+  doll:    "saturate(1.3) contrast(1.1) brightness(1.1) blur(0.4px)",
+};
+
+/** Heuristic language detection from short text. Returns BCP-47 code or "" if unsure. */
+function detectLanguage(text: string): string {
+  const t = (text || "").trim();
+  if (!t) return "";
+  // Script-range checks first
+  if (/[\u4e00-\u9fff]/.test(t)) return "zh";
+  if (/[\u3040-\u30ff]/.test(t)) return "ja";
+  if (/[\uac00-\ud7af]/.test(t)) return "ko";
+  if (/[\u0600-\u06ff]/.test(t)) return "ar";
+  if (/[\u0900-\u097f]/.test(t)) return "hi";
+  if (/[\u0400-\u04ff]/.test(t)) return "ru";
+  // Latin-script common-word heuristics
+  const l = " " + t.toLowerCase().replace(/[^\p{L}\s]/gu, " ") + " ";
+  const score: Record<string, number> = {};
+  const HINTS: Record<string, string[]> = {
+    en: ["the","and","you","this","with","that","for","are","have","not"],
+    es: ["el","la","los","las","que","de","es","y","con","por","una","para"],
+    fr: ["le","la","les","des","que","est","et","pour","avec","dans","une","vous"],
+    de: ["der","die","das","und","ist","nicht","mit","für","auch","eine","sich"],
+    it: ["il","la","che","di","è","un","una","per","con","sono","gli","del"],
+    pt: ["o","a","os","as","que","de","é","não","com","para","uma","você"],
+    nl: ["de","het","een","en","ik","niet","dat","met","voor","ook"],
+    pl: ["nie","się","jest","to","na","że","jak","oraz","tylko"],
+    tr: ["ve","bir","bu","için","ile","var","ama","çok","değil"],
+  };
+  for (const [lang, words] of Object.entries(HINTS)) {
+    score[lang] = 0;
+    for (const w of words) if (l.includes(" " + w + " ")) score[lang] += 1;
+  }
+  const best = Object.entries(score).sort((a,b) => b[1]-a[1])[0];
+  return best && best[1] >= 2 ? best[0] : "en";
+}
+
+type Scene = {
+  caption: string;
+  narration: string;
+  icon: string;
+  transition: Transition;
+  fx?: Fx;
+  fxIntensity?: number;
+  // AI-detected metadata (optional)
+  characters?: string[];
+  location?: string;
+  emotion?: string;
+  action?: string;
+  camera?: string;
+  imagePrompt?: string;
 
 type Scene = {
   caption: string;
