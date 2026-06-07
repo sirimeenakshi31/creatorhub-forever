@@ -354,9 +354,10 @@ function drawAvatar(
   ctx.restore();
 }
 
-function drawFx(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, fx: Fx, accent: string) {
+function drawFx(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, fx: Fx, accent: string, intensity = 1) {
   if (fx === "none") return;
-  const count = fx === "confetti" ? 80 : fx === "sparkles" ? 60 : fx === "fire" || fx === "smoke" ? 50 : 120;
+  const base = fx === "confetti" ? 80 : fx === "sparkles" ? 60 : fx === "fire" || fx === "smoke" ? 50 : 120;
+  const count = Math.max(4, Math.round(base * Math.max(0.1, Math.min(3, intensity))));
   for (let i = 0; i < count; i++) {
     const seed = i * 13.37;
     if (fx === "rain") {
