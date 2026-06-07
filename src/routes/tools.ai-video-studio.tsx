@@ -609,18 +609,23 @@ function Page() {
     const p = Math.max(0, Math.min(1, t / Math.max(0.001, dur)));
 
     // Background: video element > AI image > procedural gradient
+    const needsFaceFilter = (mode === "image" || mode === "video") && facePres !== "exact";
     if (videoEl && videoEl.readyState >= 2) {
       const iw = videoEl.videoWidth, ih = videoEl.videoHeight;
       if (iw && ih) {
         const s = Math.max(w / iw, h / ih);
         const dw = iw * s, dh = ih * s;
+        if (needsFaceFilter) ctx.filter = FACE_FILTERS[facePres];
         ctx.drawImage(videoEl, (w - dw) / 2, (h - dh) / 2, dw, dh);
+        ctx.filter = "none";
       } else {
         ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
       }
     } else if (sc.bgImage) {
       ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+      if (needsFaceFilter) ctx.filter = FACE_FILTERS[facePres];
       drawBackgroundCover(ctx, sc.bgImage, w, h, p, sc.camera);
+      ctx.filter = "none";
       // Subtle dark gradient overlay for caption legibility
       const og = ctx.createLinearGradient(0, h * 0.5, 0, h);
       og.addColorStop(0, hexA("#000000", 0));
