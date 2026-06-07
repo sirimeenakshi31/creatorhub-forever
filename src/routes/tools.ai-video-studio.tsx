@@ -1249,7 +1249,38 @@ function Page() {
                         {[s.characters?.join(", "), s.location, s.emotion].filter(Boolean).join(" • ")}
                       </div>
                     )}
-                    <div className="text-muted-foreground line-clamp-3">{s.narration}</div>
+                    <div className="text-muted-foreground line-clamp-3 mb-2">{s.narration}</div>
+                    <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-border/60">
+                      <select
+                        value={s.fx ?? ""}
+                        onChange={(e) => {
+                          const v = e.target.value as Fx | "";
+                          setScenes((prev) => prev.map((sc, idx) => idx === i ? { ...sc, fx: v === "" ? undefined : v as Fx } : sc));
+                        }}
+                        className="rounded-md bg-background/40 border border-border px-1.5 py-1 text-[10px]"
+                        title="Per-scene FX (overrides default)"
+                      >
+                        <option value="">FX: default</option>
+                        <option value="none">None</option>
+                        <option value="rain">Rain</option>
+                        <option value="snow">Snow</option>
+                        <option value="fire">Fire</option>
+                        <option value="smoke">Smoke</option>
+                        <option value="sparkles">Sparkles</option>
+                        <option value="confetti">Confetti</option>
+                        <option value="magic">Magic</option>
+                      </select>
+                      <input
+                        type="range" min={0.2} max={2.5} step={0.1}
+                        value={s.fxIntensity ?? fxIntensity}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setScenes((prev) => prev.map((sc, idx) => idx === i ? { ...sc, fxIntensity: v } : sc));
+                        }}
+                        title={`Intensity: ${(s.fxIntensity ?? fxIntensity).toFixed(1)}×`}
+                        className="w-full"
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
