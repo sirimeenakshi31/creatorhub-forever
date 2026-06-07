@@ -443,6 +443,10 @@ function Page() {
   const [useAIImages, setUseAIImages] = useState(true);
   const [karaoke, setKaraoke] = useState(true);
   const [fx, setFx] = useState<Fx>("none");
+  const [fxIntensity, setFxIntensity] = useState(1);
+  const [language, setLanguage] = useState<string>("auto");
+  const [detectedLang, setDetectedLang] = useState<string>("en");
+  const [facePres, setFacePres] = useState<FacePreservation>("exact");
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [busy, setBusy] = useState(false);
