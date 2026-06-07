@@ -291,6 +291,60 @@ function drawAvatar(
   ctx.restore();
 }
 
+function drawFx(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, fx: Fx, accent: string) {
+  if (fx === "none") return;
+  const count = fx === "confetti" ? 80 : fx === "sparkles" ? 60 : fx === "fire" || fx === "smoke" ? 50 : 120;
+  for (let i = 0; i < count; i++) {
+    const seed = i * 13.37;
+    if (fx === "rain") {
+      const x = (seed * 97 + t * 200) % w;
+      const y = (seed * 53 + t * 900) % h;
+      ctx.strokeStyle = "rgba(180,210,255,0.5)";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 6, y + 14); ctx.stroke();
+    } else if (fx === "snow") {
+      const x = (seed * 71 + Math.sin(t + seed) * 30) % w;
+      const y = (seed * 47 + t * 80) % h;
+      const r = 1 + (i % 4);
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    } else if (fx === "fire") {
+      const x = w * 0.5 + Math.sin(seed + t * 2) * w * 0.4;
+      const y = h - ((t * 220 + seed * 60) % h);
+      const r = 6 + (i % 8);
+      const hue = 10 + (i % 30);
+      ctx.fillStyle = `hsla(${hue},90%,55%,${0.25 + (i % 4) * 0.1})`;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    } else if (fx === "smoke") {
+      const x = (seed * 89 + Math.sin(t + seed) * 80) % w;
+      const y = h - ((t * 60 + seed * 40) % h);
+      const r = 20 + (i % 30);
+      ctx.fillStyle = `rgba(180,180,180,${0.04 + (i % 5) * 0.02})`;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    } else if (fx === "sparkles") {
+      const x = (Math.sin(t + seed) * 0.5 + 0.5) * w;
+      const y = (Math.cos(t * 1.3 + seed) * 0.5 + 0.5) * h;
+      const a = 0.4 + Math.sin(t * 4 + seed) * 0.4;
+      ctx.fillStyle = hexA(accent, Math.max(0, a));
+      ctx.beginPath(); ctx.arc(x, y, 2 + (i % 3), 0, Math.PI * 2); ctx.fill();
+    } else if (fx === "confetti") {
+      const x = (seed * 61 + Math.sin(t * 2 + seed) * 40) % w;
+      const y = ((t * 180 + seed * 90) % (h + 40)) - 20;
+      const hue = (i * 47) % 360;
+      ctx.fillStyle = `hsl(${hue},80%,60%)`;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(seed + t * 4);
+      ctx.fillRect(-4, -2, 8, 4);
+      ctx.restore();
+    } else if (fx === "magic") {
+      const x = (Math.sin(t * 0.8 + seed) * 0.5 + 0.5) * w;
+      const y = (Math.cos(t * 0.6 + seed * 1.7) * 0.5 + 0.5) * h;
+      const r = 1 + (i % 5);
+      const hue = (t * 60 + i * 20) % 360;
+      ctx.fillStyle = `hsla(${hue},90%,70%,0.7)`;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
 function drawParticles(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, accent: string) {
   for (let i = 0; i < 18; i++) {
     const seed = i * 7.3;
