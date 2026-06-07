@@ -344,6 +344,9 @@ function drawFx(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, 
       ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
     }
   }
+}
+
+
 
 function drawParticles(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, accent: string) {
   for (let i = 0; i < 18; i++) {
