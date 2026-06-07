@@ -374,10 +374,11 @@ function Page() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [sceneCount, setSceneCount] = useState(6);
-  const [voiceHint, setVoiceHint] = useState<"Female" | "Male">("Female");
+  const [voiceHint, setVoiceHint] = useState<VoiceProfile>("Female");
   const [muteExport, setMuteExport] = useState(false);
   const [useAIImages, setUseAIImages] = useState(true);
   const [karaoke, setKaraoke] = useState(true);
+  const [fx, setFx] = useState<Fx>("none");
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [busy, setBusy] = useState(false);
