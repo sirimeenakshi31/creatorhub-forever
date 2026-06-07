@@ -110,19 +110,6 @@ type Scene = {
   action?: string;
   camera?: string;
   imagePrompt?: string;
-
-type Scene = {
-  caption: string;
-  narration: string;
-  icon: string;
-  transition: Transition;
-  // AI-detected metadata (optional)
-  characters?: string[];
-  location?: string;
-  emotion?: string;
-  action?: string;
-  camera?: string;
-  imagePrompt?: string;
   // Loaded background (set client-side after image generation)
   bgImage?: HTMLImageElement | null;
 };
