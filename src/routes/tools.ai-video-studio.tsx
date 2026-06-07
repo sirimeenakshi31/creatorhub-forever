@@ -25,6 +25,26 @@ type Avatar = "none" | "cartoon" | "doll" | "anime" | "business" | "teacher" | "
 type Transition = "fade" | "slide" | "zoom" | "kenburns" | "typewriter";
 type Fx = "none" | "rain" | "snow" | "fire" | "smoke" | "sparkles" | "confetti" | "magic";
 type VoiceProfile = "Female" | "Male" | "Child" | "Elderly" | "Narrator" | "Motivational";
+type FacePreservation = "exact" | "similar" | "cartoon" | "anime" | "doll";
+
+const LANGUAGES: Record<string, { label: string; bcp: string }> = {
+  auto: { label: "Auto-detect", bcp: "" },
+  en:   { label: "English",     bcp: "en" },
+  es:   { label: "Spanish",     bcp: "es" },
+  fr:   { label: "French",      bcp: "fr" },
+  de:   { label: "German",      bcp: "de" },
+  it:   { label: "Italian",     bcp: "it" },
+  pt:   { label: "Portuguese",  bcp: "pt" },
+  nl:   { label: "Dutch",       bcp: "nl" },
+  ru:   { label: "Russian",     bcp: "ru" },
+  pl:   { label: "Polish",      bcp: "pl" },
+  tr:   { label: "Turkish",     bcp: "tr" },
+  ar:   { label: "Arabic",      bcp: "ar" },
+  hi:   { label: "Hindi",       bcp: "hi" },
+  ja:   { label: "Japanese",    bcp: "ja" },
+  ko:   { label: "Korean",      bcp: "ko" },
+  zh:   { label: "Chinese",     bcp: "zh" },
+};
 
 const VOICE_PROFILES: Record<VoiceProfile, { hint: string; rate: number; pitch: number }> = {
   Female:       { hint: "female",   rate: 1.0,  pitch: 1.05 },
@@ -35,11 +55,54 @@ const VOICE_PROFILES: Record<VoiceProfile, { hint: string; rate: number; pitch: 
   Motivational: { hint: "male",     rate: 1.05, pitch: 1.1 },
 };
 
+const FACE_FILTERS: Record<FacePreservation, string> = {
+  exact:   "none",
+  similar: "blur(0.6px) saturate(1.05)",
+  cartoon: "saturate(1.6) contrast(1.25) brightness(1.05)",
+  anime:   "saturate(1.8) contrast(1.35) hue-rotate(-5deg)",
+  doll:    "saturate(1.3) contrast(1.1) brightness(1.1) blur(0.4px)",
+};
+
+/** Heuristic language detection from short text. Returns BCP-47 code or "" if unsure. */
+function detectLanguage(text: string): string {
+  const t = (text || "").trim();
+  if (!t) return "";
+  // Script-range checks first
+  if (/[\u4e00-\u9fff]/.test(t)) return "zh";
+  if (/[\u3040-\u30ff]/.test(t)) return "ja";
+  if (/[\uac00-\ud7af]/.test(t)) return "ko";
+  if (/[\u0600-\u06ff]/.test(t)) return "ar";
+  if (/[\u0900-\u097f]/.test(t)) return "hi";
+  if (/[\u0400-\u04ff]/.test(t)) return "ru";
+  // Latin-script common-word heuristics
+  const l = " " + t.toLowerCase().replace(/[^\p{L}\s]/gu, " ") + " ";
+  const score: Record<string, number> = {};
+  const HINTS: Record<string, string[]> = {
+    en: ["the","and","you","this","with","that","for","are","have","not"],
+    es: ["el","la","los","las","que","de","es","y","con","por","una","para"],
+    fr: ["le","la","les","des","que","est","et","pour","avec","dans","une","vous"],
+    de: ["der","die","das","und","ist","nicht","mit","für","auch","eine","sich"],
+    it: ["il","la","che","di","è","un","una","per","con","sono","gli","del"],
+    pt: ["o","a","os","as","que","de","é","não","com","para","uma","você"],
+    nl: ["de","het","een","en","ik","niet","dat","met","voor","ook"],
+    pl: ["nie","się","jest","to","na","że","jak","oraz","tylko"],
+    tr: ["ve","bir","bu","için","ile","var","ama","çok","değil"],
+  };
+  for (const [lang, words] of Object.entries(HINTS)) {
+    score[lang] = 0;
+    for (const w of words) if (l.includes(" " + w + " ")) score[lang] += 1;
+  }
+  const best = Object.entries(score).sort((a,b) => b[1]-a[1])[0];
+  return best && best[1] >= 2 ? best[0] : "en";
+}
+
 type Scene = {
   caption: string;
   narration: string;
   icon: string;
   transition: Transition;
+  fx?: Fx;
+  fxIntensity?: number;
   // AI-detected metadata (optional)
   characters?: string[];
   location?: string;
@@ -112,20 +175,23 @@ function topicToScenes(topic: string, count: number): Scene[] {
   }));
 }
 
-function pickVoice(voices: SpeechSynthesisVoice[], hint: string) {
+function pickVoice(voices: SpeechSynthesisVoice[], hint: string, lang = "en") {
   if (!voices.length) return null;
-  const en = voices.filter((v) => v.lang?.toLowerCase().startsWith("en"));
-  const pool = en.length ? en : voices;
+  const langLower = (lang || "en").toLowerCase();
+  const localized = voices.filter((v) => v.lang?.toLowerCase().startsWith(langLower));
+  const fallback = voices.filter((v) => v.lang?.toLowerCase().startsWith("en"));
+  const pool = localized.length ? localized : (fallback.length ? fallback : voices);
   const lower = hint.toLowerCase();
   return pool.find((v) => v.name.toLowerCase().includes(lower)) || pool[0];
 }
 
-function speak(text: string, voice: SpeechSynthesisVoice | null, rate = 1, pitch = 1): Promise<void> {
+function speak(text: string, voice: SpeechSynthesisVoice | null, rate = 1, pitch = 1, lang = ""): Promise<void> {
   return new Promise((resolve) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) { resolve(); return; }
     try {
       const u = new SpeechSynthesisUtterance(text);
       if (voice) u.voice = voice;
+      if (lang) u.lang = lang;
       u.rate = rate; u.pitch = pitch;
       u.onend = () => resolve();
       u.onerror = () => resolve();
@@ -291,9 +357,10 @@ function drawAvatar(
   ctx.restore();
 }
 
-function drawFx(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, fx: Fx, accent: string) {
+function drawFx(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, fx: Fx, accent: string, intensity = 1) {
   if (fx === "none") return;
-  const count = fx === "confetti" ? 80 : fx === "sparkles" ? 60 : fx === "fire" || fx === "smoke" ? 50 : 120;
+  const base = fx === "confetti" ? 80 : fx === "sparkles" ? 60 : fx === "fire" || fx === "smoke" ? 50 : 120;
+  const count = Math.max(4, Math.round(base * Math.max(0.1, Math.min(3, intensity))));
   for (let i = 0; i < count; i++) {
     const seed = i * 13.37;
     if (fx === "rain") {
@@ -379,6 +446,10 @@ function Page() {
   const [useAIImages, setUseAIImages] = useState(true);
   const [karaoke, setKaraoke] = useState(true);
   const [fx, setFx] = useState<Fx>("none");
+  const [fxIntensity, setFxIntensity] = useState(1);
+  const [language, setLanguage] = useState<string>("auto");
+  const [detectedLang, setDetectedLang] = useState<string>("en");
+  const [facePres, setFacePres] = useState<FacePreservation>("exact");
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [busy, setBusy] = useState(false);
@@ -407,6 +478,14 @@ function Page() {
     window.speechSynthesis.onvoiceschanged = load;
     return () => { window.speechSynthesis.onvoiceschanged = null; };
   }, []);
+
+  // Auto language detection from script/topic input
+  useEffect(() => {
+    const sample = (script.trim() || topic.trim()).slice(0, 800);
+    if (!sample) return;
+    const lang = detectLanguage(sample);
+    if (lang) setDetectedLang(lang);
+  }, [script, topic]);
 
   useEffect(() => () => {
     previewAbortRef.current.abort = true;
@@ -541,18 +620,23 @@ function Page() {
     const p = Math.max(0, Math.min(1, t / Math.max(0.001, dur)));
 
     // Background: video element > AI image > procedural gradient
+    const needsFaceFilter = (mode === "image" || mode === "video") && facePres !== "exact";
     if (videoEl && videoEl.readyState >= 2) {
       const iw = videoEl.videoWidth, ih = videoEl.videoHeight;
       if (iw && ih) {
         const s = Math.max(w / iw, h / ih);
         const dw = iw * s, dh = ih * s;
+        if (needsFaceFilter) ctx.filter = FACE_FILTERS[facePres];
         ctx.drawImage(videoEl, (w - dw) / 2, (h - dh) / 2, dw, dh);
+        ctx.filter = "none";
       } else {
         ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
       }
     } else if (sc.bgImage) {
       ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+      if (needsFaceFilter) ctx.filter = FACE_FILTERS[facePres];
       drawBackgroundCover(ctx, sc.bgImage, w, h, p, sc.camera);
+      ctx.filter = "none";
       // Subtle dark gradient overlay for caption legibility
       const og = ctx.createLinearGradient(0, h * 0.5, 0, h);
       og.addColorStop(0, hexA("#000000", 0));
@@ -629,7 +713,7 @@ function Page() {
       ctx.fillText(badge.toUpperCase(), h * 0.04, h * 0.04 + Math.round(h * 0.035));
     }
 
-    drawFx(ctx, w, h, t, fx, accent);
+    drawFx(ctx, w, h, t, sc.fx ?? fx, accent, sc.fxIntensity ?? fxIntensity);
 
     // ============ Caption ============
     const fontSize = Math.round(h * 0.055);
@@ -720,7 +804,8 @@ function Page() {
     canvas.width = styleCfg.w; canvas.height = styleCfg.h;
 
     const vp = VOICE_PROFILES[voiceHint];
-    const voice = pickVoice(voices, vp.hint);
+    const activeLang = language === "auto" ? (detectedLang || "en") : language;
+    const voice = pickVoice(voices, vp.hint, activeLang);
 
     if (mode === "video" && videoFile) {
       const v = await setupVideoEl(videoFile);
@@ -768,7 +853,7 @@ function Page() {
       const sc = scenes[i];
       const dur = estimateDuration(sc.narration);
       const start = performance.now();
-      const speakP = speak(sc.narration, voice, vp.rate, vp.pitch);
+      const speakP = speak(sc.narration, voice, vp.rate, vp.pitch, activeLang);
       await new Promise<void>((resolve) => {
         const tick = () => {
           if (myToken.abort) { resolve(); return; }
@@ -1038,8 +1123,28 @@ function Page() {
                 {Object.keys(VOICE_PROFILES).map((k) => <option key={k} value={k}>{k}</option>)}
               </select>
             </label>
+            <label className="block">
+              <div className="text-xs text-muted-foreground mb-1">Language</div>
+              <select value={language} onChange={(e) => setLanguage(e.target.value)}
+                className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm">
+                {Object.entries(LANGUAGES).map(([k, v]) => (
+                  <option key={k} value={k}>{v.label}{k === "auto" && detectedLang ? ` → ${LANGUAGES[detectedLang]?.label || detectedLang}` : ""}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <div className="text-xs text-muted-foreground mb-1">Face preservation (image/video)</div>
+              <select value={facePres} onChange={(e) => setFacePres(e.target.value as FacePreservation)}
+                className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm">
+                <option value="exact">Exact face</option>
+                <option value="similar">Similar</option>
+                <option value="cartoon">Cartoon</option>
+                <option value="anime">Anime</option>
+                <option value="doll">3D Doll</option>
+              </select>
+            </label>
             <label className="block col-span-2">
-              <div className="text-xs text-muted-foreground mb-1">Special FX overlay</div>
+              <div className="text-xs text-muted-foreground mb-1">Default FX overlay (per-scene override below)</div>
               <select value={fx} onChange={(e) => setFx(e.target.value as Fx)}
                 className="w-full rounded-xl bg-background/40 border border-border p-2 text-sm">
                 <option value="none">None</option>
@@ -1051,6 +1156,12 @@ function Page() {
                 <option value="confetti">Confetti</option>
                 <option value="magic">Magic particles</option>
               </select>
+            </label>
+            <label className="block col-span-2">
+              <div className="text-xs text-muted-foreground mb-1">FX intensity ({fxIntensity.toFixed(1)}×)</div>
+              <input type="range" min={0.2} max={2.5} step={0.1} value={fxIntensity}
+                onChange={(e) => setFxIntensity(Number(e.target.value))}
+                className="w-full" />
             </label>
 
             <label className="flex items-center gap-2 text-sm col-span-2">
@@ -1138,7 +1249,38 @@ function Page() {
                         {[s.characters?.join(", "), s.location, s.emotion].filter(Boolean).join(" • ")}
                       </div>
                     )}
-                    <div className="text-muted-foreground line-clamp-3">{s.narration}</div>
+                    <div className="text-muted-foreground line-clamp-3 mb-2">{s.narration}</div>
+                    <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-border/60">
+                      <select
+                        value={s.fx ?? ""}
+                        onChange={(e) => {
+                          const v = e.target.value as Fx | "";
+                          setScenes((prev) => prev.map((sc, idx) => idx === i ? { ...sc, fx: v === "" ? undefined : v as Fx } : sc));
+                        }}
+                        className="rounded-md bg-background/40 border border-border px-1.5 py-1 text-[10px]"
+                        title="Per-scene FX (overrides default)"
+                      >
+                        <option value="">FX: default</option>
+                        <option value="none">None</option>
+                        <option value="rain">Rain</option>
+                        <option value="snow">Snow</option>
+                        <option value="fire">Fire</option>
+                        <option value="smoke">Smoke</option>
+                        <option value="sparkles">Sparkles</option>
+                        <option value="confetti">Confetti</option>
+                        <option value="magic">Magic</option>
+                      </select>
+                      <input
+                        type="range" min={0.2} max={2.5} step={0.1}
+                        value={s.fxIntensity ?? fxIntensity}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setScenes((prev) => prev.map((sc, idx) => idx === i ? { ...sc, fxIntensity: v } : sc));
+                        }}
+                        title={`Intensity: ${(s.fxIntensity ?? fxIntensity).toFixed(1)}×`}
+                        className="w-full"
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
