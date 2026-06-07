@@ -768,7 +768,7 @@ function Page() {
       const sc = scenes[i];
       const dur = estimateDuration(sc.narration);
       const start = performance.now();
-      const speakP = speak(sc.narration, voice);
+      const speakP = speak(sc.narration, voice, vp.rate, vp.pitch);
       await new Promise<void>((resolve) => {
         const tick = () => {
           if (myToken.abort) { resolve(); return; }
