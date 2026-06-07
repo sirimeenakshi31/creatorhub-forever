@@ -23,6 +23,17 @@ type Mode = "script" | "audio" | "faceless" | "image" | "video";
 type Ratio = "auto" | "16:9" | "9:16" | "1:1";
 type Avatar = "none" | "cartoon" | "doll" | "anime" | "business" | "teacher" | "influencer";
 type Transition = "fade" | "slide" | "zoom" | "kenburns" | "typewriter";
+type Fx = "none" | "rain" | "snow" | "fire" | "smoke" | "sparkles" | "confetti" | "magic";
+type VoiceProfile = "Female" | "Male" | "Child" | "Elderly" | "Narrator" | "Motivational";
+
+const VOICE_PROFILES: Record<VoiceProfile, { hint: string; rate: number; pitch: number }> = {
+  Female:       { hint: "female",   rate: 1.0,  pitch: 1.05 },
+  Male:         { hint: "male",     rate: 0.98, pitch: 0.9 },
+  Child:        { hint: "female",   rate: 1.15, pitch: 1.5 },
+  Elderly:      { hint: "male",     rate: 0.85, pitch: 0.75 },
+  Narrator:     { hint: "google",   rate: 0.95, pitch: 0.95 },
+  Motivational: { hint: "male",     rate: 1.05, pitch: 1.1 },
+};
 
 type Scene = {
   caption: string;
